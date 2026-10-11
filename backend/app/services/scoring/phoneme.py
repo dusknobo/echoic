@@ -118,7 +118,10 @@ class PhonemeScoringService(ScoringService):
         try:
             from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 
-            self._processor = Wav2Vec2Processor.from_pretrained(self.config.phoneme_model_id)
+            # Text is phonemized separately; the tokenizer only encodes audio output.
+            self._processor = Wav2Vec2Processor.from_pretrained(
+                self.config.phoneme_model_id, do_phonemize=False
+            )
             self._model = Wav2Vec2ForCTC.from_pretrained(self.config.phoneme_model_id).eval()
             self._move_model(self.config.device)
             return True

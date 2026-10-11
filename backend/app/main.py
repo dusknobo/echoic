@@ -8,7 +8,8 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.api.routes import audio, practice, stats, collections, gallery, oral
+from app.api.routes import audio, practice, stats, collections, gallery, oral, listening_markers, dictionary, word_speech
+from app.api.routes import ai
 from app.config import settings
 
 app = FastAPI(title="Echoic API")
@@ -20,12 +21,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(ai.router, prefix="/api/ai", tags=["ai"])
 app.include_router(audio.router, prefix="/api/audio", tags=["audio"])
+app.include_router(listening_markers.router, prefix="/api/audio", tags=["listening-markers"])
 app.include_router(practice.router, prefix="/api/practice", tags=["practice"])
 app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
 app.include_router(collections.router, prefix="/api/collections", tags=["collections"])
 app.include_router(gallery.router, prefix="/api/gallery", tags=["gallery"])
 app.include_router(oral.router, prefix="/api/oral", tags=["oral"])
+app.include_router(dictionary.router, prefix="/api/dictionary", tags=["dictionary"])
+app.include_router(word_speech.router, prefix="/api/word-speech", tags=["word-speech"])
 
 
 @app.get("/api/version")

@@ -29,7 +29,8 @@ def test_score_missing_word_gets_zero(monkeypatch):
     service = PhonemeScoringService(PhonemeScoringConfig())
 
     import torch
-    monkeypatch.setattr(service, "_phonemize_words", lambda words: ["hɛloʊ", "wɜld"])
+    monkeypatch.setattr(service._backend, "phonemize", lambda words: ["hɛloʊ", "wɜld"])
+    monkeypatch.setattr(service._backend, "display", lambda words: ["hɛloʊ", "wɜld"])
     monkeypatch.setattr(service, "_load_waveform", lambda path: (torch.zeros(1, 16000), 16000))
     monkeypatch.setattr(service, "_load_model", lambda: True)
     monkeypatch.setattr(service, "_forced_align_scores", lambda waveform, phonemes, device: ([85.0], [[80.0, 90.0]]))
@@ -41,6 +42,8 @@ def test_score_missing_word_gets_zero(monkeypatch):
     )
 
     assert [ws.word for ws in result.word_scores] == ["hello", "world"]
-    assert result.word_scores[0].accuracy_score == 85.0
+    # The current API reports calibrated CTC scores; missing words stay at zero.
+    assert result.word_scores[0].accuracy_score == pytest.approx(96.0184589404)
+    assert result.word_scores[0].expected_phonemes == "hɛloʊ"
     assert result.word_scores[1].accuracy_score == 0.0
-    assert result.accuracy_score == pytest.approx(42.5)
+    assert result.accuracy_score == pytest.approx(48.0092294702)

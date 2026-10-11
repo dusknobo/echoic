@@ -15,3 +15,17 @@ frontend/dist/
 docker-compose.override.yml
 *.pyc
 .zed
+
+.runtime/
+frontend/dist-check/
+
+# Local credentials and learning databases
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3

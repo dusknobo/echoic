@@ -24,8 +24,8 @@ def test_fluency_score_penalizes_long_pauses_more_than_tight_spacing():
     ]
     long_pause_sequence = [
         _word("one", 0.0, 0.4),
-        _word("two", 1.2, 1.6),
-        _word("three", 1.65, 2.05),
+        _word("two", 2.4, 2.8),
+        _word("three", 2.85, 3.25),
     ]
 
     tight_score = PhonemeScoringService._fluency_score(tight_sequence)

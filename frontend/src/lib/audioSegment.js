@@ -38,19 +38,33 @@ export function encodeWav(buf) {
  * Then slice [startSec, endSec] and return a WAV Blob.
  */
 export async function getSegmentBlob(url, startSec, endSec, cacheRef) {
-  if (!cacheRef.current) {
-    const resp = await fetch(url)
-    const arrayBuf = await resp.arrayBuffer()
-    const ctx = new AudioContext()
-    cacheRef.current = await ctx.decodeAudioData(arrayBuf)
-    ctx.close()
+  // Cache the in-flight decode as well as its result, keyed by source URL.
+  // A late request for a previous route cannot replace the new file's entry.
+  if (cacheRef.current?.url !== url) {
+    const entry = { url, promise: null }
+    entry.promise = (async () => {
+      const resp = await fetch(url)
+      if (!resp.ok) throw new Error('Audio unavailable')
+      const arrayBuf = await resp.arrayBuffer()
+      const ctx = new AudioContext()
+      try { return await ctx.decodeAudioData(arrayBuf) }
+      finally { await ctx.close() }
+    })().catch(error => {
+      if (cacheRef.current === entry) cacheRef.current = null
+      throw error
+    })
+    cacheRef.current = entry
+  }
+  const full = await cacheRef.current.promise
+  if (!Number.isFinite(startSec) || !Number.isFinite(endSec) || startSec < 0 || endSec <= startSec) {
+    throw new Error('Invalid audio range')
   }
 
-  const full = cacheRef.current
   const sr = full.sampleRate
   const s0 = Math.max(0, Math.floor(startSec * sr))
   const s1 = Math.min(full.length, Math.ceil(endSec * sr))
   const len = s1 - s0
+  if (len <= 0) throw new Error('Empty audio range')
 
   // Duck-type: no need to create an AudioBuffer instance
   const segment = {

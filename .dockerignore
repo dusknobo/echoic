@@ -12,3 +12,10 @@ frontend/node_modules
 
 # Misc
 .env
+
+# Local-only learning data, secrets and caches
+.runtime
+.pytest_cache
+**/.env
+**/.env.*
+!**/.env.example

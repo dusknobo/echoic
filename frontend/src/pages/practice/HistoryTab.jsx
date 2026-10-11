@@ -1,14 +1,15 @@
 import { useTranslation } from 'react-i18next'
 import { Trash2 } from 'lucide-react'
 import ScoreCard from '@/components/ScoreCard'
+import AIRecordingAnalysis from '@/components/AIRecordingAnalysis'
 import { scoreColor, chipBg } from './utils'
 
-export default function HistoryTab({ history, currentRecordId, result, wordSummary, selectedSentence, onLoadRecord, onDeleteRecord }) {
+export default function HistoryTab({ history, currentRecordId, analysisDisabled = false, comparison, result, wordSummary, selectedSentence, onLoadRecord, onDeleteRecord }) {
   const { t } = useTranslation()
   return (
-    <>
+    <div className="min-h-0 flex-1 overflow-y-auto">
       {/* History list */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
+      <div className="max-h-64 overflow-y-auto px-5 py-4">
         {history.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             {selectedSentence ? t('practice.noPractice') : t('practice.selectToView')}
@@ -53,6 +54,10 @@ export default function HistoryTab({ history, currentRecordId, result, wordSumma
         )}
       </div>
 
+      <div className="border-t border-border/30">
+        <AIRecordingAnalysis recordId={currentRecordId} disabled={analysisDisabled} selectedSentence={selectedSentence} comparison={comparison} />
+      </div>
+
       {/* Word summary */}
       {wordSummary.length > 0 && (
         <div className="shrink-0 border-t border-border/30 px-5 py-3">
@@ -74,10 +79,10 @@ export default function HistoryTab({ history, currentRecordId, result, wordSumma
 
       {/* Detail panel */}
       {result?.accuracy_score != null && (
-        <div className="shrink-0 max-h-[55%] overflow-y-auto border-t border-border/30 px-5 py-4">
+        <div className="border-t border-border/30 px-5 py-4">
           <ScoreCard result={result} />
         </div>
       )}
-    </>
+    </div>
   )
 }

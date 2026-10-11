@@ -1,3 +1,4 @@
+import json
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 
@@ -104,7 +105,9 @@ def test_import_from_url_downloads_transcribes_and_persists(db, monkeypatch):
         )
 
     assert response.status_code == 200
-    body = response.json()
+    events = [json.loads(line.removeprefix("data: ")) for line in response.text.splitlines() if line.startswith("data: ")]
+    assert [event["step"] for event in events] == ["downloading", "saving", "transcribing", "done"]
+    body = events[-1]["result"]
     assert body["title"] == "Remote lesson"
     assert storage.saved[0][1] == b"downloaded-audio"
     assert asr.paths == [f"/tmp/{storage.saved[0][0]}"]

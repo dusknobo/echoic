@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- Native Windows setup with SQLite, CPU speech models, local start/stop scripts and a portable setup guide.
+- Continuous blind listening with non-pausing keyboard markers, word lookup, notes and sentence review links.
+- Simultaneous original/recording playback, offline word pronunciation and English definitions.
+- Configurable AI recording analysis through seven providers, a shared default service and per-recording saved feedback.
+- Word and connected-speech clip comparison directly inside AI results, with local recording alignment cached for replay.
+- Backend regression tests, frontend playback/matching tests and portable browser QA scripts.
+
+### Fixed
+- Local scoring and audio loading preserve correct sentence/recording state during asynchronous playback and analysis.
+
 ## [1.7.0] - 2026-05-19
 
 ### Added

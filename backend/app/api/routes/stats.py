@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -66,7 +66,7 @@ async def get_summary(db: Session = Depends(get_db)):
 
     # Streak: consecutive days (ending today or yesterday) with at least one practice
     active_dates = {
-        row[0]
+        date.fromisoformat(str(row[0]))
         for row in db.query(func.date(PracticeRecord.created_at))
         .group_by(func.date(PracticeRecord.created_at))
         .all()

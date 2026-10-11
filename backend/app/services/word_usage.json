@@ -1,0 +1,779 @@
+{
+  "a": {
+    "partOfSpeech": "article",
+    "definition": "Used before a singular countable noun when the person or thing is not already identified.",
+    "examples": [
+      "I saw a bird in an old tree."
+    ]
+  },
+  "an": {
+    "partOfSpeech": "article",
+    "definition": "Used before a singular countable noun when the person or thing is not already identified.",
+    "examples": [
+      "I saw a bird in an old tree."
+    ]
+  },
+  "the": {
+    "partOfSpeech": "article",
+    "definition": "Used before a noun to refer to a particular person or thing that the listener can identify.",
+    "examples": [
+      "Please close the door."
+    ]
+  },
+  "i": {
+    "partOfSpeech": "pronoun",
+    "definition": "The person who is speaking or writing.",
+    "examples": [
+      "I am learning English."
+    ],
+    "word": "I"
+  },
+  "you": {
+    "partOfSpeech": "pronoun",
+    "definition": "The person or people being spoken or written to.",
+    "examples": [
+      "You can sit here."
+    ]
+  },
+  "he": {
+    "partOfSpeech": "pronoun",
+    "definition": "A male person or animal already mentioned or understood.",
+    "examples": [
+      "He lives nearby."
+    ]
+  },
+  "she": {
+    "partOfSpeech": "pronoun",
+    "definition": "A female person or animal already mentioned or understood.",
+    "examples": [
+      "She is my sister."
+    ]
+  },
+  "it": {
+    "partOfSpeech": "pronoun",
+    "definition": "A thing, animal, situation, time, or weather condition already mentioned or understood.",
+    "examples": [
+      "It is raining."
+    ]
+  },
+  "we": {
+    "partOfSpeech": "pronoun",
+    "definition": "The speaker together with one or more other people.",
+    "examples": [
+      "We walk to school."
+    ]
+  },
+  "they": {
+    "partOfSpeech": "pronoun",
+    "definition": "People or things already mentioned; also a person whose gender is unknown or unspecified.",
+    "examples": [
+      "They are waiting outside."
+    ]
+  },
+  "me": {
+    "partOfSpeech": "pronoun",
+    "definition": "The object form of I, referring to the speaker.",
+    "examples": [
+      "Please help me."
+    ]
+  },
+  "him": {
+    "partOfSpeech": "pronoun",
+    "definition": "The object form of he.",
+    "examples": [
+      "I gave him the book."
+    ]
+  },
+  "her": {
+    "partOfSpeech": "pronoun / determiner",
+    "definition": "The object form of she; or belonging to the female person being referred to.",
+    "examples": [
+      "I asked her about her job."
+    ]
+  },
+  "us": {
+    "partOfSpeech": "pronoun",
+    "definition": "The object form of we, referring to the speaker and other people.",
+    "examples": [
+      "Come with us."
+    ]
+  },
+  "them": {
+    "partOfSpeech": "pronoun",
+    "definition": "The object form of they.",
+    "examples": [
+      "I saw them yesterday."
+    ]
+  },
+  "my": {
+    "partOfSpeech": "determiner",
+    "definition": "Belonging to or connected with the speaker.",
+    "examples": []
+  },
+  "your": {
+    "partOfSpeech": "determiner",
+    "definition": "Belonging to or connected with the person or people being addressed.",
+    "examples": []
+  },
+  "his": {
+    "partOfSpeech": "determiner",
+    "definition": "Belonging to or connected with the male person being referred to.",
+    "examples": []
+  },
+  "its": {
+    "partOfSpeech": "determiner",
+    "definition": "Belonging to or connected with the thing or animal being referred to.",
+    "examples": []
+  },
+  "our": {
+    "partOfSpeech": "determiner",
+    "definition": "Belonging to or connected with the speaker and other people.",
+    "examples": []
+  },
+  "their": {
+    "partOfSpeech": "determiner",
+    "definition": "Belonging to or connected with the people or person being referred to.",
+    "examples": []
+  },
+  "this": {
+    "partOfSpeech": "determiner / pronoun",
+    "definition": "The person or thing close to the speaker, or the idea just mentioned.",
+    "examples": [
+      "This book is useful."
+    ]
+  },
+  "that": {
+    "partOfSpeech": "determiner / pronoun / conjunction",
+    "definition": "Refers to a person, thing, or idea farther away or already mentioned; also introduces a clause.",
+    "examples": [
+      "I know that that house is empty."
+    ]
+  },
+  "these": {
+    "partOfSpeech": "determiner / pronoun",
+    "definition": "The plural form of this, referring to people or things close to the speaker.",
+    "examples": [
+      "These shoes are new."
+    ]
+  },
+  "those": {
+    "partOfSpeech": "determiner / pronoun",
+    "definition": "The plural form of that, referring to people or things farther away or already mentioned.",
+    "examples": [
+      "Those trees are tall."
+    ]
+  },
+  "and": {
+    "partOfSpeech": "conjunction",
+    "definition": "Connects words or statements that are added together.",
+    "examples": [
+      "I like tea and coffee."
+    ]
+  },
+  "or": {
+    "partOfSpeech": "conjunction",
+    "definition": "Connects alternatives or possibilities.",
+    "examples": [
+      "Would you like tea or coffee?"
+    ]
+  },
+  "but": {
+    "partOfSpeech": "conjunction",
+    "definition": "Introduces a statement that contrasts with what was just said.",
+    "examples": [
+      "It is cold, but sunny."
+    ]
+  },
+  "if": {
+    "partOfSpeech": "conjunction",
+    "definition": "Introduces a condition or an uncertain possibility.",
+    "examples": [
+      "We will go if it stops raining."
+    ]
+  },
+  "because": {
+    "partOfSpeech": "conjunction",
+    "definition": "Introduces the reason for something.",
+    "examples": [
+      "I stayed home because I was tired."
+    ]
+  },
+  "although": {
+    "partOfSpeech": "conjunction",
+    "definition": "Introduces a fact that contrasts with the main statement.",
+    "examples": [
+      "Although it was cold, we went outside."
+    ]
+  },
+  "though": {
+    "partOfSpeech": "conjunction",
+    "definition": "Introduces a fact that contrasts with the main statement.",
+    "examples": [
+      "Although it was cold, we went outside."
+    ]
+  },
+  "when": {
+    "partOfSpeech": "adverb / conjunction",
+    "definition": "Asks or states at what time something happens.",
+    "examples": [
+      "When does the lesson start?"
+    ]
+  },
+  "while": {
+    "partOfSpeech": "conjunction",
+    "definition": "During the time that something else happens; or used to contrast two situations.",
+    "examples": [
+      "I listened while she spoke."
+    ]
+  },
+  "who": {
+    "partOfSpeech": "pronoun",
+    "definition": "Asks about a person, or introduces information about a person.",
+    "examples": [
+      "Who is at the door?"
+    ]
+  },
+  "whom": {
+    "partOfSpeech": "pronoun",
+    "definition": "The object form of who, used especially in formal English.",
+    "examples": [
+      "To whom should I send it?"
+    ]
+  },
+  "whose": {
+    "partOfSpeech": "determiner / pronoun",
+    "definition": "Asks or states which person something belongs to.",
+    "examples": [
+      "Whose bag is this?"
+    ]
+  },
+  "what": {
+    "partOfSpeech": "determiner / pronoun",
+    "definition": "Asks about the identity, nature, or kind of something.",
+    "examples": [
+      "What is your name?"
+    ]
+  },
+  "which": {
+    "partOfSpeech": "determiner / pronoun",
+    "definition": "Asks about or identifies one or more members of a known group.",
+    "examples": [
+      "Which book do you want?"
+    ]
+  },
+  "where": {
+    "partOfSpeech": "adverb / conjunction",
+    "definition": "Asks or states in what place something is or happens.",
+    "examples": [
+      "Where do you live?"
+    ]
+  },
+  "why": {
+    "partOfSpeech": "adverb / conjunction",
+    "definition": "Asks or states the reason for something.",
+    "examples": [
+      "Why are you laughing?"
+    ]
+  },
+  "how": {
+    "partOfSpeech": "adverb",
+    "definition": "Asks or states the manner, condition, degree, or amount of something.",
+    "examples": [
+      "How do you spell it?"
+    ]
+  },
+  "to": {
+    "partOfSpeech": "preposition / infinitive marker",
+    "definition": "Shows a destination or recipient; also comes before a verb in its infinitive form.",
+    "examples": [
+      "I want to go to school."
+    ]
+  },
+  "of": {
+    "partOfSpeech": "preposition",
+    "definition": "Shows a relationship such as belonging, origin, contents, or a part of something.",
+    "examples": [
+      "A cup of tea."
+    ]
+  },
+  "in": {
+    "partOfSpeech": "preposition / adverb",
+    "definition": "Inside a place or within a period of time.",
+    "examples": [
+      "She lives in London."
+    ]
+  },
+  "on": {
+    "partOfSpeech": "preposition / adverb",
+    "definition": "Touching a surface; also used for particular days or dates.",
+    "examples": [
+      "The book is on the table."
+    ]
+  },
+  "at": {
+    "partOfSpeech": "preposition",
+    "definition": "Identifies a particular place, point, activity, or time.",
+    "examples": [
+      "Meet me at six."
+    ]
+  },
+  "by": {
+    "partOfSpeech": "preposition / adverb",
+    "definition": "Shows who does something, the method used, a nearby position, or a deadline.",
+    "examples": [
+      "The book was written by her."
+    ]
+  },
+  "for": {
+    "partOfSpeech": "preposition / conjunction",
+    "definition": "Shows a purpose, recipient, reason, or length of time.",
+    "examples": [
+      "This gift is for you."
+    ]
+  },
+  "from": {
+    "partOfSpeech": "preposition",
+    "definition": "Shows the starting point, source, or origin of something.",
+    "examples": [
+      "She is from Canada."
+    ]
+  },
+  "with": {
+    "partOfSpeech": "preposition",
+    "definition": "Together with, having, or using something.",
+    "examples": [
+      "He came with his sister."
+    ]
+  },
+  "without": {
+    "partOfSpeech": "preposition",
+    "definition": "Not having or not using something.",
+    "examples": [
+      "Tea without sugar, please."
+    ]
+  },
+  "as": {
+    "partOfSpeech": "conjunction / preposition / adverb",
+    "definition": "Shows a role, manner, reason, time, or comparison.",
+    "examples": [
+      "She works as a teacher."
+    ]
+  },
+  "than": {
+    "partOfSpeech": "conjunction / preposition",
+    "definition": "Introduces the second part of a comparison.",
+    "examples": [
+      "This bag is heavier than mine."
+    ]
+  },
+  "not": {
+    "partOfSpeech": "adverb",
+    "definition": "Makes a statement or part of a statement negative.",
+    "examples": [
+      "I am not ready."
+    ]
+  },
+  "am": {
+    "partOfSpeech": "verb",
+    "definition": "A form of be: expresses identity, a state, or existence; also helps form continuous tenses and the passive voice.",
+    "examples": [
+      "She is happy. They are studying."
+    ]
+  },
+  "is": {
+    "partOfSpeech": "verb",
+    "definition": "A form of be: expresses identity, a state, or existence; also helps form continuous tenses and the passive voice.",
+    "examples": [
+      "She is happy. They are studying."
+    ]
+  },
+  "are": {
+    "partOfSpeech": "verb",
+    "definition": "A form of be: expresses identity, a state, or existence; also helps form continuous tenses and the passive voice.",
+    "examples": [
+      "She is happy. They are studying."
+    ]
+  },
+  "was": {
+    "partOfSpeech": "verb",
+    "definition": "A form of be: expresses identity, a state, or existence; also helps form continuous tenses and the passive voice.",
+    "examples": [
+      "She is happy. They are studying."
+    ]
+  },
+  "were": {
+    "partOfSpeech": "verb",
+    "definition": "A form of be: expresses identity, a state, or existence; also helps form continuous tenses and the passive voice.",
+    "examples": [
+      "She is happy. They are studying."
+    ]
+  },
+  "been": {
+    "partOfSpeech": "verb",
+    "definition": "A form of be: expresses identity, a state, or existence; also helps form continuous tenses and the passive voice.",
+    "examples": [
+      "She is happy. They are studying."
+    ]
+  },
+  "being": {
+    "partOfSpeech": "verb",
+    "definition": "A form of be: expresses identity, a state, or existence; also helps form continuous tenses and the passive voice.",
+    "examples": [
+      "She is happy. They are studying."
+    ]
+  },
+  "has": {
+    "partOfSpeech": "verb",
+    "definition": "A form of have: means to possess or experience something; also helps form perfect tenses.",
+    "examples": [
+      "She has a car. He has finished."
+    ]
+  },
+  "had": {
+    "partOfSpeech": "verb",
+    "definition": "A form of have: means to possess or experience something; also helps form perfect tenses.",
+    "examples": [
+      "She has a car. He has finished."
+    ]
+  },
+  "does": {
+    "partOfSpeech": "verb",
+    "definition": "A form of do: means to perform an action; also helps form questions, negatives, and emphasis.",
+    "examples": [
+      "Does she work here?"
+    ]
+  },
+  "did": {
+    "partOfSpeech": "verb",
+    "definition": "A form of do: means to perform an action; also helps form questions, negatives, and emphasis.",
+    "examples": [
+      "Does she work here?"
+    ]
+  },
+  "can": {
+    "partOfSpeech": "modal verb",
+    "definition": "Expresses ability, permission, or a general possibility.",
+    "examples": [
+      "I can swim."
+    ]
+  },
+  "could": {
+    "partOfSpeech": "modal verb",
+    "definition": "Expresses past ability, a possibility, or a polite request.",
+    "examples": [
+      "Could you help me?"
+    ]
+  },
+  "will": {
+    "partOfSpeech": "modal verb",
+    "definition": "Expresses a future event, willingness, a promise, or a prediction.",
+    "examples": [
+      "I will call tomorrow."
+    ]
+  },
+  "would": {
+    "partOfSpeech": "modal verb",
+    "definition": "Expresses an imagined result, a past habit, or a polite request.",
+    "examples": [
+      "I would travel if I had time."
+    ]
+  },
+  "may": {
+    "partOfSpeech": "modal verb",
+    "definition": "Expresses possibility or permission.",
+    "examples": [
+      "It may rain later."
+    ]
+  },
+  "might": {
+    "partOfSpeech": "modal verb",
+    "definition": "Expresses a possibility that is uncertain.",
+    "examples": [
+      "She might come tomorrow."
+    ]
+  },
+  "must": {
+    "partOfSpeech": "modal verb",
+    "definition": "Expresses a strong obligation or a conclusion based on evidence.",
+    "examples": [
+      "You must wear a seat belt."
+    ]
+  },
+  "shall": {
+    "partOfSpeech": "modal verb",
+    "definition": "Expresses a future action, an offer, a suggestion, or a formal requirement.",
+    "examples": [
+      "Shall we begin?"
+    ]
+  },
+  "should": {
+    "partOfSpeech": "modal verb",
+    "definition": "Expresses advice, duty, or something expected to happen.",
+    "examples": [
+      "You should get some rest."
+    ]
+  },
+  "i'm": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of I am.",
+    "examples": []
+  },
+  "you're": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of you are.",
+    "examples": []
+  },
+  "he's": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of he is or he has.",
+    "examples": []
+  },
+  "she's": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of she is or she has.",
+    "examples": []
+  },
+  "it's": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of it is or it has.",
+    "examples": []
+  },
+  "we're": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of we are.",
+    "examples": []
+  },
+  "they're": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of they are.",
+    "examples": []
+  },
+  "that's": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of that is or that has.",
+    "examples": []
+  },
+  "there's": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of there is or there has.",
+    "examples": []
+  },
+  "what's": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of what is or what has.",
+    "examples": []
+  },
+  "who's": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of who is or who has.",
+    "examples": []
+  },
+  "let's": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of let us.",
+    "examples": []
+  },
+  "don't": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of do not.",
+    "examples": []
+  },
+  "doesn't": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of does not.",
+    "examples": []
+  },
+  "didn't": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of did not.",
+    "examples": []
+  },
+  "isn't": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of is not.",
+    "examples": []
+  },
+  "aren't": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of are not.",
+    "examples": []
+  },
+  "wasn't": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of was not.",
+    "examples": []
+  },
+  "weren't": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of were not.",
+    "examples": []
+  },
+  "haven't": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of have not.",
+    "examples": []
+  },
+  "hasn't": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of has not.",
+    "examples": []
+  },
+  "hadn't": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of had not.",
+    "examples": []
+  },
+  "can't": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of cannot.",
+    "examples": []
+  },
+  "couldn't": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of could not.",
+    "examples": []
+  },
+  "won't": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of will not.",
+    "examples": []
+  },
+  "wouldn't": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of would not.",
+    "examples": []
+  },
+  "shouldn't": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of should not.",
+    "examples": []
+  },
+  "mustn't": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of must not.",
+    "examples": []
+  },
+  "mightn't": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of might not.",
+    "examples": []
+  },
+  "needn't": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of need not.",
+    "examples": []
+  },
+  "i've": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of I have.",
+    "examples": []
+  },
+  "you've": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of you have.",
+    "examples": []
+  },
+  "we've": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of we have.",
+    "examples": []
+  },
+  "they've": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of they have.",
+    "examples": []
+  },
+  "i'll": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of I will.",
+    "examples": []
+  },
+  "you'll": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of you will.",
+    "examples": []
+  },
+  "he'll": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of he will.",
+    "examples": []
+  },
+  "she'll": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of she will.",
+    "examples": []
+  },
+  "it'll": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of it will.",
+    "examples": []
+  },
+  "we'll": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of we will.",
+    "examples": []
+  },
+  "they'll": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of they will.",
+    "examples": []
+  },
+  "i'd": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of I would or I had.",
+    "examples": []
+  },
+  "you'd": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of you would or you had.",
+    "examples": []
+  },
+  "he'd": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of he would or he had.",
+    "examples": []
+  },
+  "she'd": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of she would or she had.",
+    "examples": []
+  },
+  "we'd": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of we would or we had.",
+    "examples": []
+  },
+  "they'd": {
+    "partOfSpeech": "contraction",
+    "definition": "A shortened form of they would or they had.",
+    "examples": []
+  },
+  "have": {
+    "partOfSpeech": "verb",
+    "definition": "To possess or experience something; also an auxiliary verb used to form perfect tenses.",
+    "examples": [
+      "She has a car. He has finished."
+    ]
+  },
+  "do": {
+    "partOfSpeech": "verb",
+    "definition": "To perform an action; also an auxiliary verb used in questions, negatives, and emphasis.",
+    "examples": [
+      "Does she work here?"
+    ]
+  },
+  "cannot": {
+    "partOfSpeech": "modal verb",
+    "definition": "The negative form of can: means to be unable to do something, or not permitted to do it.",
+    "examples": [
+      "I cannot swim."
+    ]
+  },
+  "no": {
+    "partOfSpeech": "determiner / adverb",
+    "definition": "Expresses a negative answer, refusal, or the absence of something.",
+    "examples": [
+      "No, thank you. There is no milk."
+    ]
+  }
+}

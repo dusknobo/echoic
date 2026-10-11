@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { useSettings } from '@/lib/settings'
+import AISettings from '@/components/AISettings'
 
 const THEMES = [
   { value: 'system', key: 'settings.themeSystem', icon: Monitor },
@@ -99,6 +100,8 @@ export default function Settings() {
 
         </div>
       </section>
+
+      <AISettings />
 
       {/* Keyboard Shortcuts */}
       <section className="mb-8">

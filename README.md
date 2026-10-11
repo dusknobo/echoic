@@ -10,6 +10,10 @@
 
 ---
 
+## Native Windows setup
+
+Run Echoic without Docker using SQLite, local speech models and the scripts in this repository. See [the Windows setup guide](./LOCAL_SETUP.md) for installation, start/stop commands and data backups.
+
 ## Features
 
 - **Oral Practice** — AI-driven speaking drills in three modes:
@@ -17,6 +21,10 @@
   - *Situational* — respond to an AI-generated scenario; LLM evaluates content, relevance, and expression
   - *Monologue* — speak freely on a given topic for about one minute; LLM scores and gives feedback
 - **Content Gallery** — Browse and import curated episodes from VOA Learning English and BBC Learning English
+- **Continuous Listening** — mark timestamps with Space / M / semicolon without pausing; revisit the corresponding words and sentences
+- **Recording Comparison** — play original audio and your recording together, or replay matching word/phrase clips from AI feedback
+- **English Word Study** — click words for source pronunciation or local speech, plus offline English definitions
+- **AI Recording Analysis** — configure Tencent, Azure, iFlytek, OpenAI, Gemini, Qwen or a local audio endpoint; choose one default service and save pronunciation/connected-speech feedback with each recording
 - **Audio Import** — Upload local files or import from any direct audio URL
 - **Collections** — Organise audio into named collections
 - **Sentence Practice** — Practice each sentence with adjustable playback speed (0.5×–2×)

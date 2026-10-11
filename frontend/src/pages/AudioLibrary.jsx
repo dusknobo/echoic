@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, LayoutGrid, List, Pencil, Trash2, RotateCcw, FolderPlus, CheckCircle2, Loader2 } from 'lucide-react'
+import { Plus, Search, LayoutGrid, List, Pencil, Trash2, RotateCcw, FolderPlus, CheckCircle2, Loader2, Headphones } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -404,7 +404,7 @@ export default function AudioLibrary() {
                     <TableHead className="w-[90px]">{t('library.practiceCount')}</TableHead>
                     <TableHead className="w-[110px]">{t('library.updatedAt')}</TableHead>
                     <TableHead className="w-[60px]">ASR</TableHead>
-                    <TableHead className="w-[80px]">{t('library.actions')}</TableHead>
+                    <TableHead className="w-[150px]">{t('library.actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -435,6 +435,9 @@ export default function AudioLibrary() {
                       </TableCell>
                       <TableCell onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-0.5">
+                          <Button variant="outline" size="sm" className="mr-1" onClick={() => navigate(`/listening/${f.id}`)} title="连续盲听 · 空格打时间标记">
+                            <Headphones className="w-3.5 h-3.5" /> 盲听
+                          </Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={e => openEdit(e, f)}>
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
@@ -463,6 +466,9 @@ export default function AudioLibrary() {
                     </p>
                   </div>
                   <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
+                    <Button variant="outline" size="sm" className="mr-1" onClick={() => navigate(`/listening/${f.id}`)} title="连续盲听 · 空格打时间标记">
+                      <Headphones className="w-3.5 h-3.5" /> 盲听
+                    </Button>
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={e => openEdit(e, f)}>
                       <Pencil className="w-3.5 h-3.5" />
                     </Button>
@@ -487,6 +493,9 @@ export default function AudioLibrary() {
                 </div>
                 <p className="text-sm font-medium truncate">{f.title}</p>
                 <p className="text-xs text-muted-foreground">{timeAgo(f.created_at, t)}</p>
+                <Button variant="outline" size="sm" onClick={e => { e.stopPropagation(); navigate(`/listening/${f.id}`) }}>
+                  <Headphones className="w-3.5 h-3.5" /> 连续盲听
+                </Button>
               </div>
             ))}
           </div>

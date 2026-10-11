@@ -90,3 +90,14 @@ export const galleryApi = {
     return api.get(`/gallery/${qs ? `?${qs}` : ''}`)
   },
 }
+
+export const markerApi = {
+  list: (audioFileId) => api.get(`/audio/${audioFileId}/markers`, { timeout: 15000 }),
+  create: (audioFileId, marker) => api.post(`/audio/${audioFileId}/markers`, marker, { timeout: 15000 }),
+  update: (audioFileId, markerId, changes) => api.patch(`/audio/${audioFileId}/markers/${markerId}`, changes, { timeout: 15000 }),
+  delete: (audioFileId, markerId) => api.delete(`/audio/${audioFileId}/markers/${markerId}`, { timeout: 15000 }),
+}
+
+export const dictionaryApi = {
+  lookup: (word, { signal } = {}) => api.get(`/dictionary/en/${encodeURIComponent(word)}`, { signal, timeout: 15000 }),
+}

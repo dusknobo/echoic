@@ -1,0 +1,80 @@
+const { launchBrowser } = require('./qa_support.cjs');
+const fs = require('node:fs');
+const path = require('node:path');
+const assert = require('node:assert/strict');
+const root = path.resolve(__dirname, '..');
+const qa = path.join(root, '.runtime', 'qa');
+const item = JSON.parse(fs.readFileSync(path.join(qa, 'audio.json'), 'utf8'));
+const base = 'http://127.0.0.1:18765';
+(async () => {
+ const browser = await launchBrowser({headless:true, args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream',
+     '--use-file-for-fake-audio-capture='+path.join(qa,'sentence.wav')]});
+ const context = await browser.newContext({viewport:{width:1280,height:960},locale:'zh-CN',permissions:['microphone']});
+ const page = await context.newPage();
+ const errors=[];
+ page.on('pageerror', e=>errors.push(e.message));
+ page.on('dialog', d=>d.accept());
+ const markerUrl = base+'/api/audio/'+item.id+'/markers';
+ const rows = page.locator('section[aria-label="\u65f6\u95f4\u6807\u8bb0"] ol > li');
+ await page.goto(base+'/listening/'+item.id);
+ await page.waitForFunction(()=>document.querySelector('audio')?.readyState>=1);
+ assert.equal(await page.getByText(item.sentences[0].text,{exact:true}).count(),0,'transcript hidden');
+ await page.evaluate(()=>{
+   window.qaPlayer=document.querySelector('audio');window.qaEvents=[];
+   ['pause','play','seeking','emptied'].forEach(event=>qaPlayer.addEventListener(event,()=>qaEvents.push(event)));
+ });
+ await page.getByRole('button',{name:/\(P\)/}).click();
+ await page.waitForTimeout(400);
+ const before = await page.locator('audio').evaluate(a=>a.currentTime);
+ await page.keyboard.press('Space');
+ await page.keyboard.down('KeyM');
+ await page.keyboard.down('KeyM');
+ await page.keyboard.up('KeyM');
+ await page.keyboard.press('Semicolon');
+ await page.waitForTimeout(750);
+ const playback = await page.locator('audio').evaluate(a=>({paused:a.paused,time:a.currentTime,same:a===qaPlayer,events:qaEvents}));
+ assert.equal(await rows.count(),3,'Space, held M, semicolon create three markers');
+ assert.equal(playback.paused,false);
+ assert(playback.time>before+0.5);
+ assert.equal(playback.same,true);
+ assert.deepEqual(playback.events,['play'],'marking must never pause, seek or reload');
+ await page.waitForFunction(()=>document.querySelectorAll('section[aria-label="\u65f6\u95f4\u6807\u8bb0"] li input:not(:disabled)').length===3);
+ await rows.first().locator('input').fill('test');
+ await page.keyboard.press('Space');
+ await page.keyboard.type('note');
+ assert.equal(await rows.count(),3,'typing spaces never marks');
+ await rows.first().getByRole('button',{name:'\u4fdd\u5b58\u5907\u6ce8'}).click();
+ await page.waitForTimeout(200);
+ await page.getByRole('heading',{level:1}).click();
+ await page.keyboard.press('KeyP');
+ assert.equal(await page.locator('audio').evaluate(a=>a.paused),true,'P pauses');
+ // Simulate committed POST with its HTTP response lost, then refresh.
+ await page.route(markerUrl, async route=>{
+   if(route.request().method()==='POST'){await route.fetch();await route.abort('failed');}
+   else await route.continue();
+ });
+ await page.keyboard.press('KeyM');
+ await page.getByText('\u65e0\u6cd5\u786e\u8ba4\u4fdd\u5b58\u6210\u529f\uff0c\u6807\u8bb0\u4ecd\u4fdd\u7559\uff0c\u8bf7\u70b9\u91cd\u8bd5\u3002').waitFor();
+ await page.reload();
+ await page.waitForTimeout(500);
+ assert.equal(await rows.count(),4,'refresh reconciles committed client UUID');
+ assert.deepEqual(await page.evaluate(id=>JSON.parse(localStorage.getItem('echoic.pendingMarkers.'+id)),item.id),[]);
+ const saved = await (await context.request.get(markerUrl)).json();
+ assert.equal(saved.length,4);
+ assert.equal(saved[0].note,'test note');
+ await page.screenshot({path:path.join(qa,'listening.png'),fullPage:true});
+ await page.unroute(markerUrl);
+ // Clicking a timestamp explicitly replays, then enters matching sentence practice.
+ await rows.first().locator('button[title]').click();
+ await page.waitForTimeout(200);
+ assert.equal(await page.locator('audio').evaluate(a=>a.paused),false);
+ await rows.first().getByRole('link').click();
+ await page.waitForURL('**/speaking/'+item.id+'?time=*');
+ await page.waitForTimeout(1600);
+ await page.getByText('\u6211\u7684\u7ec3\u4e60',{exact:true}).click();
+ await page.screenshot({path:path.join(qa,'practice.png'),fullPage:true});
+ console.log('Practice text:',(await page.locator('body').innerText()).slice(0,2500));
+ console.log('Listening browser checks passed; JS errors:',errors);
+ assert.deepEqual(errors,[]);
+ await browser.close();
+})().catch(error=>{console.error(error);process.exit(1)});

@@ -1,5 +1,7 @@
 from datetime import datetime
+from typing import Literal
 from pydantic import BaseModel, ConfigDict
+from app.schemas.audio import WordTimestamp
 
 
 class WordScore(BaseModel):
@@ -28,3 +30,10 @@ class HeatmapEntry(BaseModel):
     date: str  # YYYY-MM-DD
     count: int
     avg_score: float | None
+
+
+class RecordWordTimingsResponse(BaseModel):
+    record_id: int
+    source: Literal["local_alignment"] = "local_alignment"
+    words: list[WordTimestamp]
+    duration: float

@@ -3,6 +3,7 @@ import Layout from './components/Layout'
 import Overview from './pages/Overview'
 import AudioLibrary from './pages/AudioLibrary'
 import Practice from './pages/Practice'
+import Listening from './pages/Listening'
 import Settings from './pages/Settings'
 import Gallery from './pages/Gallery'
 import OralHome from './pages/OralHome'
@@ -15,6 +16,7 @@ export default function App() {
         <Route path="/" element={<Overview />} />
         <Route path="/speaking" element={<AudioLibrary />} />
         <Route path="/speaking/:audioFileId" element={<Practice />} />
+        <Route path="/listening/:audioFileId" element={<Listening />} />
         <Route path="/gallery" element={<Gallery />} />
         <Route path="/oral" element={<OralHome />} />
         <Route path="/oral/:type" element={<OralPractice />} />

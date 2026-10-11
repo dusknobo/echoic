@@ -85,17 +85,24 @@ def _seed_audio_file(db) -> AudioFile:
     return audio_file
 
 
-def test_submit_recording_returns_scores_and_persists_record(db):
+def test_save_then_score_recording_persists_record(db, monkeypatch):
     audio_file = _seed_audio_file(db)
     storage = MockStorageService()
     alignment = MockAlignmentService()
     scoring = MockScoringService()
+    monkeypatch.setattr("app.api.routes.practice.get_storage_service", lambda _backend: storage)
 
     with _client(db, storage, alignment, scoring) as client:
         response = client.post(
-            f"/api/practice/{audio_file.id}/sentence/0",
+            f"/api/practice/{audio_file.id}/sentence/0/save",
             files={"file": ("attempt.webm", b"recording-bytes", "audio/webm")},
         )
+        assert response.status_code == 200
+        saved = response.json()
+        assert saved["accuracy_score"] is None
+        assert saved["word_scores"] is None
+        assert alignment.calls == []
+        response = client.post(f"/api/practice/record/{saved['id']}/score")
 
     assert response.status_code == 200
     body = response.json()
@@ -121,7 +128,7 @@ def test_submit_recording_returns_scores_and_persists_record(db):
 def test_submit_recording_returns_404_for_unknown_audio_file(db):
     with _client(db, MockStorageService(), MockAlignmentService(), MockScoringService()) as client:
         response = client.post(
-            "/api/practice/9999/sentence/0",
+            "/api/practice/9999/sentence/0/save",
             files={"file": ("attempt.webm", b"recording-bytes", "audio/webm")},
         )
 

@@ -1,0 +1,54 @@
+const { launchBrowser } = require('./qa_support.cjs');
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'..'),qa=path.join(root,'.runtime','qa');
+const item=JSON.parse(fs.readFileSync(path.join(qa,'audio.json'),'utf8'));
+(async()=>{
+ const browser=await launchBrowser({headless:true,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream','--use-file-for-fake-audio-capture='+path.join(qa,'sentence.wav')]});
+ const context=await browser.newContext({viewport:{width:1280,height:960},locale:'zh-CN',permissions:['microphone']});
+ await context.addInitScript(()=>{
+   window.qaPlayCalls=[];
+   const play=HTMLMediaElement.prototype.play;
+   HTMLMediaElement.prototype.play=function(...args){
+     window.qaPlayCalls.push({src:this.currentSrc||this.src,at:performance.now()});
+     return play.apply(this,args);
+   };
+ });
+ const page=await context.newPage(), errors=[];
+ page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('http://127.0.0.1:18765/speaking/'+item.id+'?time=0');
+ await page.getByText('\u70b9\u51fb\u5f00\u59cb\u5f55\u97f3',{exact:true}).waitFor();
+ await page.waitForTimeout(1000);
+ const savedPromise=page.waitForResponse(r=>r.url().endsWith('/sentence/0/save')&&r.request().method()==='POST');
+ await page.keyboard.press('KeyR');
+ await page.waitForSelector('canvas[width="160"]');
+ await page.waitForTimeout(2600);
+ await page.keyboard.press('KeyR');
+ const savedResponse=await savedPromise;
+ assert.equal(savedResponse.ok(),true);
+ const record=await savedResponse.json();
+ const ab=page.locator('button').filter({has:page.locator('svg.lucide-arrow-left-right')});
+ await ab.waitFor();
+ await page.waitForTimeout(500);
+ await page.evaluate(()=>{window.qaPlayCalls=[]});
+ await ab.click();
+ await page.waitForTimeout(5000);
+ const calls=await page.evaluate(()=>window.qaPlayCalls);
+ assert.equal(calls.length,2,'A/B should play original then recording exactly once');
+ assert.notEqual(calls[0].src,calls[1].src);
+ assert(calls[1].at>calls[0].at+500,'recording follows original');
+ const scorePromise=page.waitForResponse(r=>r.url().endsWith('/record/'+record.id+'/score'),{timeout:120000});
+ await page.keyboard.press('Enter');
+ const scoreResponse=await scorePromise;
+ assert.equal(scoreResponse.ok(),true);
+ const score=await scoreResponse.json();
+ assert(score.word_scores.length>0);
+ await page.getByText('\u6211\u7684\u7ec3\u4e60',{exact:true}).click();
+ await page.waitForTimeout(500);
+ await page.screenshot({path:path.join(qa,'recorded-practice.png'),fullPage:true});
+ assert.deepEqual(errors,[]);
+ console.log('Browser microphone recording, WebM save, waveform rendering, A/B sequence and score passed. Record:',record.id,'Accuracy:',score.accuracy_score);
+ // Keep the reference scored example; remove only this temporary fake microphone record.
+ const deleted=await context.request.delete('http://127.0.0.1:18765/api/practice/record/'+record.id);
+ assert.equal(deleted.status(),204);
+ await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});

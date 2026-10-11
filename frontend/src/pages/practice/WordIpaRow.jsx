@@ -1,15 +1,20 @@
+import { useTranslation } from 'react-i18next'
 import { scoreColor } from './utils'
 
-export default function WordIpaRow({ words, activeIndex }) {
+export default function WordIpaRow({ words, activeIndex, selectedIndex, onWordClick }) {
+  const { t } = useTranslation()
   return (
-    <div className="flex flex-wrap gap-x-5 gap-y-3">
+    <div className="flex flex-wrap gap-x-3 gap-y-2">
       {words.map((w, i) => {
         const isActive = i === activeIndex
         const textCls = isActive
           ? 'text-red-500 font-semibold'
           : w.score != null ? scoreColor(w.score) : 'text-foreground font-semibold'
         return (
-          <div key={i} className="flex flex-col items-center gap-0.5">
+          <button key={i} type="button" onClick={() => onWordClick(i)}
+            aria-label={t('practice.studyWord', { word: w.text })}
+            aria-pressed={selectedIndex === i}
+            className={`flex flex-col items-center gap-0.5 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selectedIndex === i ? 'bg-accent ring-1 ring-border' : ''}`}>
             <span className={`text-base leading-6 tracking-wide transition-colors duration-100 ${textCls}`}>
               {w.text}
             </span>
@@ -18,7 +23,7 @@ export default function WordIpaRow({ words, activeIndex }) {
                 {w.ipa}
               </span>
             )}
-          </div>
+          </button>
         )
       })}
     </div>

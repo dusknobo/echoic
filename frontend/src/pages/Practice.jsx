@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
 import WaveSurfer from 'wavesurfer.js'
 import {
   ChevronLeft, ChevronRight, Mic, Play, Pause,
   Loader2, Repeat, Repeat1, Gauge, Download,
-  BarChart2, Check, X, ArrowLeftRight, MoreVertical,
+  BarChart2, Check, X, ArrowLeftRight, MoreVertical, Headphones,
 } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
@@ -16,8 +16,11 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/comp
 import SentenceList from '../components/SentenceList'
 import { audioApi, practiceApi } from '@/api'
 import { getSegmentBlob } from '@/lib/audioSegment'
+import { sentenceAtTime } from '@/lib/listening'
 import { useSettings } from '@/lib/settings'
 import { usePracticeRecorder } from '@/hooks/usePracticeRecorder'
+import { useWordPronunciation } from '@/hooks/useWordPronunciation'
+import { useAIComparisonPlayback } from '@/hooks/useAIComparisonPlayback'
 import { SPEEDS, formatTime, rowBtnCls } from './practice/utils'
 import WaveformRow from './practice/WaveformRow'
 import AnalysisTab from './practice/AnalysisTab'
@@ -25,6 +28,7 @@ import HistoryTab from './practice/HistoryTab'
 
 export default function Practice() {
   const { audioFileId } = useParams()
+  const [searchParams] = useSearchParams()
   const { t } = useTranslation()
   const { settings: appSettings } = useSettings()
 
@@ -51,6 +55,9 @@ export default function Practice() {
   const origWsRef = useRef(null)
   const origContainerRef = useRef(null)
   const loopRef = useRef('sentence')
+  const speedRef = useRef(speed)
+  const selectionRevisionRef = useRef(0)
+  speedRef.current = speed
   const audioCacheRef = useRef(null)
   const origBlobRef = useRef(null)
   const sentencesRef = useRef([])
@@ -65,18 +72,21 @@ export default function Practice() {
 
   // ── Recorder hook ──
   const {
-    recPhase, recError, userPlaying,
+    recPhase, recError, userPlaying, userReady, simultaneousPhase,
     recBlobRef, liveCanvasRef,
-    userWsRef, userContainerRef,
+    userContainerRef, userWsRef,
     currentRecordId,
     history, setHistory,
     result, setResult,
-    abPhase, setAbPhase, abPhaseRef,
-    startRecording, pauseRecording, resumeRecording, finishRecording,
+    abPhase,
+    startRecording: startRecordingRaw, pauseRecording, resumeRecording, finishRecording,
     resetRec, resetForSentence,
-    submitRecording, playAB,
-    loadHistoryRecord, deleteHistoryRecord,
-  } = usePracticeRecorder({ audioFileId, selectedSentence, origWsRef })
+    submitRecording: submitRecordingRaw, playAB: playABRaw,
+    toggleSimultaneousPlayback: toggleSimultaneousPlaybackRaw, stopComparisonPlayback, stopAllPlayback,
+    handleSimultaneousOriginalFinish, handleABOriginalFinish,
+    toggleOriginalPlayback: toggleOriginalPlaybackRaw, toggleUserPlayback: toggleUserPlaybackRaw,
+    loadHistoryRecord: loadHistoryRecordRaw, deleteHistoryRecord: deleteHistoryRecordRaw,
+  } = usePracticeRecorder({ audioFileId, selectedSentence, origWsRef, playbackRate: speed })
 
   // ── Create original WaveSurfer once ──
   useEffect(() => {
@@ -92,18 +102,19 @@ export default function Practice() {
       barRadius: 3,
       normalize: true,
     })
-    ws.on('ready', () => { setOrigReady(true); setOrigDur(ws.getDuration()) })
-    ws.on('play', () => setOrigPlaying(true))
+    ws.on('ready', () => {
+      ws.setPlaybackRate(speedRef.current)
+      setOrigReady(true)
+      setOrigDur(ws.getDuration())
+    })
+    ws.on('play', () => { stopAIComparison(); stopWordPlayback(); setOrigPlaying(true) })
     ws.on('pause', () => setOrigPlaying(false))
     ws.on('timeupdate', t => setOrigTime(t))
+    ws.on('interaction', () => { stopAIComparison(); stopWordPlayback(); stopComparisonPlayback() })
     ws.on('finish', () => {
       setOrigPlaying(false)
-      if (abPhaseRef.current === 'A') {
-        setAbPhase('B')
-        userWsRef.current?.seekTo(0)
-        userWsRef.current?.play()
-        return
-      }
+      if (handleSimultaneousOriginalFinish()) return
+      if (handleABOriginalFinish()) return
       if (loopRef.current === 'sentence') {
         ws.seekTo(0); ws.play()
       } else if (loopRef.current === 'list') {
@@ -123,7 +134,9 @@ export default function Practice() {
   // Load sentence-level audio blob when selection changes
   useEffect(() => {
     if (!origWsRef.current || !selectedSentence) return
+    let cancelled = false
     setOrigReady(false); setOrigTime(0); setOrigDur(0)
+    origBlobRef.current = null
     origWsRef.current.pause()
     const autoPlay = autoPlayOnReadyRef.current
     autoPlayOnReadyRef.current = false
@@ -132,37 +145,37 @@ export default function Practice() {
       selectedSentence.start,
       selectedSentence.end,
       audioCacheRef,
-    ).then(blob => {
-      origBlobRef.current = blob
+    ).then(async blob => {
+      if (cancelled) return
       const ws = origWsRef.current
       if (!ws) return
-      ws.loadBlob(blob)
-      if (autoPlay) {
-        const unsub = ws.on('ready', () => { unsub(); ws.play() })
-      }
-    }).catch(console.error)
+      origBlobRef.current = blob
+      await ws.loadBlob(blob)
+      if (cancelled) return
+      ws.setPlaybackRate(speedRef.current)
+      if (autoPlay) await ws.play()
+    }).catch(error => { if (!cancelled) console.error(error) })
+    return () => { cancelled = true }
   }, [selectedSentence?.index, audioFileId])
 
   useEffect(() => { origWsRef.current?.setPlaybackRate(speed) }, [speed])
 
-  // Cancel A/B when sentence changes
-  useEffect(() => {
-    if (abPhaseRef.current) {
-      origWsRef.current?.pause()
-      userWsRef.current?.pause()
-      setAbPhase(null)
-    }
-  }, [selectedSentence?.index])
-
   // ── Sentence selection ──
   function handleSelect(sentence) {
+    stopAIComparison()
+    stopWordPlayback()
+    const operation = ++selectionRevisionRef.current
     const current = sentences.find(s => s.index === sentence.index) ?? sentence
     setSelectedSentence(current)
     setPhonemes([])
     setAnalysis(current.analysis ?? null)
     resetForSentence()
-    audioApi.getPhonemes(audioFileId, sentence.index).then(r => setPhonemes(r.data)).catch(() => {})
-    practiceApi.getHistory(audioFileId, sentence.index).then(r => setHistory(r.data)).catch(() => {})
+    audioApi.getPhonemes(audioFileId, sentence.index).then(r => {
+      if (operation === selectionRevisionRef.current) setPhonemes(r.data)
+    }).catch(() => {})
+    practiceApi.getHistory(audioFileId, sentence.index).then(r => {
+      if (operation === selectionRevisionRef.current) setHistory(r.data)
+    }).catch(() => {})
   }
 
   async function handleRefreshPhonemes() {
@@ -216,12 +229,13 @@ export default function Practice() {
   // ── Keyboard shortcuts ──
   useEffect(() => {
     function handleKey(e) {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+      if (e.target.closest?.('input, textarea, select, [contenteditable="true"]')) return
       switch (e.code) {
         case 'Space':
+          if (e.target.closest?.('button, a, [role=button], [role=tab]')) return
           e.preventDefault()
           if (recPhase === 'recording' || recPhase === 'paused') return
-          origWsRef.current?.playPause()
+          if (!e.repeat && origReady) toggleOriginalPlayback()
           break
         case 'KeyR':
           if (e.metaKey || e.ctrlKey) return
@@ -230,6 +244,7 @@ export default function Practice() {
           else if (recPhase === 'recording') finishRecording()
           break
         case 'Enter':
+          if (e.target.closest?.('button, a, [role=button], [role=tab]')) return
           if (recPhase === 'recorded' && currentRecordId) {
             e.preventDefault()
             submitRecording()
@@ -246,7 +261,7 @@ export default function Practice() {
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [recPhase, currentRecordId, selectedSentence, sentences])
+  }, [recPhase, currentRecordId, selectedSentence, sentences, origReady, toggleOriginalPlayback])
 
   // ── Derived data ──
   const words = useMemo(() => {
@@ -263,6 +278,39 @@ export default function Practice() {
     }
     return []
   }, [result, selectedSentence, phonemes])
+
+  const pronunciationDisabled = recPhase === 'recording' || recPhase === 'paused'
+  const { playWord, stopWordPlayback, playingWordIndex, wordPlaybackError, pronunciationSource } = useWordPronunciation({
+    audioFileId, selectedSentence, words, audioCacheRef, playbackRate: speed,
+    onBeforePlay: () => { stopAIComparison(); stopAllPlayback() }, disabled: pronunciationDisabled,
+  })
+
+  const comparison = useAIComparisonPlayback({
+    audioFileId, selectedSentence, recordId: currentRecordId, audioCacheRef, playbackRate: speed,
+    onBeforePlay: () => { stopWordPlayback(); stopAllPlayback() },
+    disabled: pronunciationDisabled || recPhase === 'submitting',
+  })
+  const stopAIComparison = comparison.stop
+
+  useEffect(() => {
+    const ws = userWsRef.current
+    if (!ws) return
+    const unplay = ws.on('play', stopAIComparison)
+    const unseek = ws.on('interaction', stopAIComparison)
+    return () => { unplay(); unseek() }
+  }, [userReady, currentRecordId, stopAIComparison])
+
+  function startRecording() { stopAIComparison(); stopWordPlayback(); return startRecordingRaw() }
+  function submitRecording() { stopAIComparison(); stopWordPlayback(); return submitRecordingRaw() }
+  function playAB() { stopAIComparison(); stopWordPlayback(); return playABRaw() }
+  function toggleSimultaneousPlayback() { stopAIComparison(); stopWordPlayback(); return toggleSimultaneousPlaybackRaw() }
+  function toggleOriginalPlayback() { stopAIComparison(); stopWordPlayback(); return toggleOriginalPlaybackRaw() }
+  function toggleUserPlayback() { stopAIComparison(); stopWordPlayback(); return toggleUserPlaybackRaw() }
+  function loadHistoryRecord(record) { stopAIComparison(); stopWordPlayback(); return loadHistoryRecordRaw(record) }
+  function deleteHistoryRecord(event, record) {
+    if (record.id === currentRecordId) stopAIComparison()
+    return deleteHistoryRecordRaw(event, record)
+  }
 
   const activeWordIndex = useMemo(() => {
     if (words.length === 0 || (!origPlaying && origTime === 0)) return -1
@@ -324,13 +372,15 @@ export default function Practice() {
       <TooltipContent side="left">{t('practice.reRecord')}</TooltipContent>
     </Tooltip>,
     <Tooltip key="play">
-      <TooltipTrigger className={rowBtnCls} onClick={() => userWsRef.current?.playPause()}>
+      <TooltipTrigger className={rowBtnCls} disabled={!userReady || recPhase !== 'recorded'}
+        aria-label={userPlaying ? t('practice.pause') : t('practice.playRecording')} onClick={toggleUserPlayback}>
         {userPlaying ? <Pause className="size-4" /> : <Play className="size-4" />}
       </TooltipTrigger>
       <TooltipContent side="left">{userPlaying ? t('practice.pause') : t('practice.playRecording')}</TooltipContent>
     </Tooltip>,
     <Tooltip key="ab">
-      <TooltipTrigger className={`${rowBtnCls} ${abPhase ? 'text-primary' : ''}`} disabled={!origReady} onClick={playAB}>
+      <TooltipTrigger className={`${rowBtnCls} ${abPhase ? 'text-primary' : ''}`}
+        disabled={!origReady || !userReady || recPhase !== 'recorded'} aria-label={t('practice.abCompare')} onClick={playAB}>
         <ArrowLeftRight className="size-4" />
       </TooltipTrigger>
       <TooltipContent side="left">
@@ -368,6 +418,9 @@ export default function Practice() {
           </Link>
           {audioTitle && (<><span className="text-border">/</span>
             <span className="max-w-xs truncate text-foreground">{audioTitle}</span></>)}
+          <Link to={`/listening/${audioFileId}`} className="ml-auto inline-flex items-center gap-1 whitespace-nowrap hover:text-foreground">
+            <Headphones className="size-4" /> 连续盲听
+          </Link>
         </div>
 
         {/* Main panels */}
@@ -384,7 +437,13 @@ export default function Practice() {
               audioFileId={audioFileId}
               onSelect={handleSelect}
               selectedIndex={selectedSentence?.index ?? null}
-              onTitleLoad={(title, sents) => { setAudioTitle(title); setSentences(sents); if (sents.length) handleSelect(sents[0]) }}
+              onTitleLoad={(title, sents) => {
+                setAudioTitle(title)
+                setSentences(sents)
+                const requested = searchParams.get('time')
+                const sentence = requested !== null ? sentenceAtTime(sents, Number(requested)) : sents[0]
+                if (sentence) handleSelect(sentence)
+              }}
             />
           </section>
 
@@ -398,7 +457,13 @@ export default function Practice() {
                 </TabsList>
               </div>
               <TabsContent value="translation" className="mt-0 flex-1 overflow-y-auto px-5 py-5 data-[state=inactive]:hidden">
-                <AnalysisTab
+                <AnalysisTab key={audioFileId}
+                  onPronounceWord={playWord}
+                  onStopWord={stopWordPlayback}
+                  playingWordIndex={playingWordIndex}
+                  pronunciationSource={pronunciationSource}
+                  wordPlaybackError={wordPlaybackError}
+                  pronunciationDisabled={pronunciationDisabled}
                   selectedSentence={selectedSentence}
                   words={words}
                   activeWordIndex={activeWordIndex}
@@ -413,6 +478,8 @@ export default function Practice() {
                 <HistoryTab
                   history={history}
                   currentRecordId={currentRecordId}
+                  comparison={comparison}
+                  analysisDisabled={!!comparison.playing || recPhase === 'recording' || recPhase === 'paused' || recPhase === 'submitting' || origPlaying || userPlaying || !!abPhase || simultaneousPhase === 'playing' || playingWordIndex !== null}
                   result={result}
                   wordSummary={wordSummary}
                   selectedSentence={selectedSentence}
@@ -508,9 +575,10 @@ export default function Practice() {
                 size="icon"
                 className="size-11 rounded-full bg-foreground text-background shadow-md transition-transform hover:bg-foreground/90 active:scale-95"
                 disabled={!origReady}
-                onClick={() => origWsRef.current?.playPause()}
+                onClick={toggleOriginalPlayback}
+                aria-label={simultaneousPhase === 'playing' ? t('practice.pauseTogether') : simultaneousPhase === 'paused' ? t('practice.resumeTogether') : origPlaying ? t('practice.pauseOriginal') : t('practice.playOriginal')}
               >
-                {origPlaying ? <Pause className="size-5" /> : <Play className="size-5" />}
+                {origPlaying || simultaneousPhase === 'playing' ? <Pause className="size-5" /> : <Play className="size-5" />}
               </Button>
               <Button variant="ghost" size="icon" className="size-8"
                 disabled={selectedIndex === -1 || selectedIndex >= sentences.length - 1}
@@ -526,7 +594,23 @@ export default function Practice() {
                 </TooltipTrigger>
                 <TooltipContent>{t('practice.playbackSpeed')}</TooltipContent>
               </Tooltip>
+              <Button
+                variant={simultaneousPhase ? 'default' : 'outline'}
+                size="sm"
+                disabled={!origReady || !userReady || recPhase !== 'recorded'}
+                aria-pressed={simultaneousPhase === 'playing'}
+                onClick={toggleSimultaneousPlayback}
+              >
+                {simultaneousPhase === 'playing' ? <Pause className="size-4" /> : <Headphones className="size-4" />}
+                {simultaneousPhase === 'playing' ? t('practice.pauseTogether') : simultaneousPhase === 'paused' ? t('practice.resumeTogether') : t('practice.playTogether')}
+              </Button>
             </div>
+            {userReady && (
+              <p className="text-center text-[11px] text-muted-foreground">{t('practice.togetherHint')}</p>
+            )}
+            {recError && recPhase !== 'idle' && (
+              <p role="alert" className="text-center text-xs text-red-500">{recError}</p>
+            )}
           </div>
         </div>
       </div>
