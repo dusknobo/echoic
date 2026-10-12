@@ -3,12 +3,15 @@ import { useTranslation } from 'react-i18next'
 import WaveSurfer from 'wavesurfer.js'
 import { practiceApi } from '@/api'
 import { createPairedPlayback } from '@/lib/pairedPlayback'
+import { createRecordingSession, recordingErrorMessage, recordingInterruptionMessage } from '@/lib/recording'
 
 /** Recording, A/B comparison, simultaneous playback, history and scoring. */
 export function usePracticeRecorder({ audioFileId, selectedSentence, origWsRef, playbackRate = 1 }) {
   const { t } = useTranslation()
   const [recPhase, setRecPhase] = useState('idle')
   const [recError, setRecError] = useState(null)
+  const [saveState, setSaveState] = useState('idle')
+  const [saveError, setSaveError] = useState(null)
   const [userPlaying, setUserPlaying] = useState(false)
   const [userReady, setUserReady] = useState(false)
   const [currentRecordId, setCurrentRecordId] = useState(null)
@@ -18,10 +21,10 @@ export function usePracticeRecorder({ audioFileId, selectedSentence, origWsRef, 
   const [simultaneousPhase, setSimultaneousPhase] = useState(null)
 
   const recBlobRef = useRef(null)
-  const recChunksRef = useRef([])
-  const recStreamRef = useRef(null)
-  const mediaRecorderRef = useRef(null)
-  const abandonRef = useRef(false)
+  const captureRef = useRef(null)
+  const savePromiseRef = useRef(null)
+  const savedRecordIdRef = useRef(null)
+  const submittingRef = useRef(false)
   const userWsRef = useRef(null)
   const userContainerRef = useRef(null)
   const liveCanvasRef = useRef(null)
@@ -218,7 +221,7 @@ export function usePracticeRecorder({ audioFileId, selectedSentence, origWsRef, 
     pairedRef.current.stop()
     safePause(origWsRef.current)
     safePause(userWsRef.current)
-    recStreamRef.current?.getTracks().forEach(track => track.stop())
+    captureRef.current?.cancel()
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
     analyserRef.current?.audioCtx.close().catch(() => {})
   }, [])
@@ -232,6 +235,7 @@ export function usePracticeRecorder({ audioFileId, selectedSentence, origWsRef, 
     const data = new Uint8Array(analyser.fftSize)
     analyser.getByteTimeDomainData(data)
     const ctx = canvas.getContext('2d')
+    if (!ctx) return
     const { width: w, height: h } = canvas
     ctx.clearRect(0, 0, w, h)
     const barW = 2, gap = 1, step = barW + gap
@@ -250,25 +254,25 @@ export function usePracticeRecorder({ audioFileId, selectedSentence, origWsRef, 
     if (animFrameRef.current) { cancelAnimationFrame(animFrameRef.current); animFrameRef.current = null }
     if (analyserRef.current) { analyserRef.current.audioCtx.close().catch(() => {}); analyserRef.current = null }
     const canvas = liveCanvasRef.current
-    if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
+    if (canvas) canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height)
   }
 
   function resetRec() {
     recordingRevisionRef.current++
+    captureRef.current?.cancel()
+    captureRef.current = null
+    savePromiseRef.current = null
+    savedRecordIdRef.current = null
+    setCurrentRecordId(null)
+    submittingRef.current = false
     stopComparisons()
     userReadyRef.current = false
     setUserReady(false)
     stopLiveViz()
-    const mr = mediaRecorderRef.current
-    if (mr && (mr.state === 'recording' || mr.state === 'paused')) {
-      abandonRef.current = true
-      mr.stop()
-    }
     recBlobRef.current = null
-    recChunksRef.current = []
-    recStreamRef.current?.getTracks().forEach(track => track.stop())
-    recStreamRef.current = null
     setRecError(null)
+    setSaveState('idle')
+    setSaveError(null)
     setRecPhase('idle')
   }
 
@@ -279,68 +283,94 @@ export function usePracticeRecorder({ audioFileId, selectedSentence, origWsRef, 
     setHistory([])
   }
 
+  function saveRecordingBlob(operation = recordingRevisionRef.current) {
+    if (operation !== recordingRevisionRef.current || !recBlobRef.current || !selectedSentence) return Promise.resolve(null)
+    if (savedRecordIdRef.current) return Promise.resolve(savedRecordIdRef.current)
+    if (savePromiseRef.current?.operation === operation) return savePromiseRef.current.promise
+    const blob = recBlobRef.current
+    const sentenceIndex = selectedSentence.index
+    setSaveState('saving')
+    setSaveError(null)
+    const promise = (async () => {
+      try {
+        const { data } = await practiceApi.saveRecording(audioFileId, sentenceIndex, blob)
+        if (operation !== recordingRevisionRef.current) return null
+        savedRecordIdRef.current = data.id
+        setCurrentRecordId(data.id)
+        setSaveState('saved')
+        practiceApi.getHistory(audioFileId, sentenceIndex)
+          .then(r => { if (operation === recordingRevisionRef.current) setHistory(r.data) }).catch(() => {})
+        return data.id
+      } catch (error) {
+        if (operation === recordingRevisionRef.current) {
+          setSaveState('error')
+          setSaveError(error.response?.data?.detail || tRef.current('recording.saveFailed', {
+            defaultValue: '录音上传失败，音频仍保留在当前页面。请保持页面打开，联网后重试保存。',
+          }))
+        }
+        return null
+      } finally {
+        if (savePromiseRef.current?.operation === operation) savePromiseRef.current = null
+      }
+    })()
+    savePromiseRef.current = { operation, promise }
+    return promise
+  }
+
+  function startLiveViz(stream) {
+    const AudioCtx = globalThis.AudioContext || globalThis.webkitAudioContext
+    if (!AudioCtx) return
+    let audioCtx
+    try {
+      audioCtx = new AudioCtx()
+      const source = audioCtx.createMediaStreamSource(stream)
+      const analyser = audioCtx.createAnalyser()
+      analyser.fftSize = 128
+      source.connect(analyser)
+      analyserRef.current = { analyser, audioCtx }
+      animFrameRef.current = requestAnimationFrame(drawLive)
+      return stopLiveViz
+    } catch {
+      audioCtx?.close().catch(() => {})
+    }
+  }
+
   async function startRecording() {
-    if (!selectedSentence) return
+    if (!selectedSentence || captureRef.current || recPhase === 'submitting') return
     resetRec()
     const operation = recordingRevisionRef.current
     setCurrentRecordId(null)
     setResult(null)
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setRecError(t('practice.micNotSupported'))
-      return
-    }
-    let stream
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: { sampleRate: { ideal: 16000 }, channelCount: { ideal: 1 } },
-      })
-    } catch (err) {
-      if (operation !== recordingRevisionRef.current) return
-      setRecError((err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')
-        ? t('practice.micPermissionDenied') : t('practice.micError'))
-      return
-    }
-    if (operation !== recordingRevisionRef.current) {
-      stream.getTracks().forEach(track => track.stop())
-      return
-    }
-    recStreamRef.current = stream
-    const audioCtx = new AudioContext()
-    const source = audioCtx.createMediaStreamSource(stream)
-    const analyser = audioCtx.createAnalyser()
-    analyser.fftSize = 128
-    source.connect(analyser)
-    analyserRef.current = { analyser, audioCtx }
-    animFrameRef.current = requestAnimationFrame(drawLive)
-
-    const mr = new MediaRecorder(stream)
-    mediaRecorderRef.current = mr
-    const chunks = []
-    recChunksRef.current = chunks
-    mr.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
-    mr.onstop = () => {
-      if (operation !== recordingRevisionRef.current || abandonRef.current) { abandonRef.current = false; return }
-      stopLiveViz()
-      const blob = new Blob(chunks, { type: 'audio/webm' })
-      recBlobRef.current = blob
-      recStreamRef.current?.getTracks().forEach(track => track.stop())
-      recStreamRef.current = null
-      setRecPhase('recorded')
-      practiceApi.saveRecording(audioFileId, selectedSentence.index, blob).then(({ data }) => {
-        if (operation !== recordingRevisionRef.current) return
-        setCurrentRecordId(data.id)
-        practiceApi.getHistory(audioFileId, selectedSentence.index)
-          .then(r => { if (operation === recordingRevisionRef.current) setHistory(r.data) }).catch(() => {})
-      }).catch(() => {})
-    }
-    abandonRef.current = false
-    mr.start()
-    setRecPhase('recording')
+    setRecPhase('requesting')
+    const isCurrent = () => operation === recordingRevisionRef.current
+    const capture = createRecordingSession({
+      onStream: startLiveViz,
+      onStart: () => { if (isCurrent()) setRecPhase('recording') },
+      onInterrupt: reason => {
+        if (isCurrent()) setRecError(recordingInterruptionMessage(reason, tRef.current))
+      },
+      onComplete: blob => {
+        if (!isCurrent()) return
+        captureRef.current = null
+        recBlobRef.current = blob
+        setRecPhase('recorded')
+        saveRecordingBlob(operation)
+      },
+      onError: error => {
+        if (!isCurrent()) return
+        captureRef.current = null
+        setRecError(recordingErrorMessage(error, tRef.current))
+        setRecPhase('idle')
+      },
+    })
+    captureRef.current = capture
+    await capture.start()
   }
 
-  function pauseRecording() { mediaRecorderRef.current?.pause(); setRecPhase('paused') }
-  function resumeRecording() { mediaRecorderRef.current?.resume(); setRecPhase('recording') }
-  function finishRecording() { mediaRecorderRef.current?.stop() }
+  function pauseRecording() { if (captureRef.current?.pause()) setRecPhase('paused') }
+  function resumeRecording() { if (captureRef.current?.resume()) setRecPhase('recording') }
+  function finishRecording() { captureRef.current?.stop() }
+  function retrySaveRecording() { return saveRecordingBlob() }
 
   function playAB() {
     if (abPhaseRef.current) { stopComparisons(); return }
@@ -354,13 +384,17 @@ export function usePracticeRecorder({ audioFileId, selectedSentence, origWsRef, 
   }
 
   async function submitRecording() {
-    if (!currentRecordId) return
+    if (!recBlobRef.current || submittingRef.current) return
+    submittingRef.current = true
     stopComparisons()
     const operation = recordingRevisionRef.current
     setRecPhase('submitting')
     setRecError(null)
     try {
-      const { data } = await practiceApi.scoreRecording(currentRecordId)
+      const recordId = savedRecordIdRef.current || await saveRecordingBlob(operation)
+      if (operation !== recordingRevisionRef.current) return
+      if (!recordId) { submittingRef.current = false; setRecPhase('recorded'); return }
+      const { data } = await practiceApi.scoreRecording(recordId)
       if (operation !== recordingRevisionRef.current) return
       setResult(data)
       practiceApi.getHistory(audioFileId, selectedSentence.index)
@@ -369,7 +403,7 @@ export function usePracticeRecorder({ audioFileId, selectedSentence, origWsRef, 
       if (operation !== recordingRevisionRef.current) return
       setRecError(err.response?.data?.detail ?? err.message ?? t('practice.scoreFailed'))
     }
-    if (operation === recordingRevisionRef.current) setRecPhase('recorded')
+    if (operation === recordingRevisionRef.current) { submittingRef.current = false; setRecPhase('recorded') }
   }
 
   async function loadHistoryRecord(record) {
@@ -377,6 +411,8 @@ export function usePracticeRecorder({ audioFileId, selectedSentence, origWsRef, 
     const operation = recordingRevisionRef.current
     setResult(record)
     setCurrentRecordId(record.id)
+    savedRecordIdRef.current = record.id
+    setSaveState('saved')
     try {
       const resp = await fetch(practiceApi.recordStreamUrl(record.id))
       if (!resp.ok) throw new Error('Recording unavailable')
@@ -401,7 +437,7 @@ export function usePracticeRecorder({ audioFileId, selectedSentence, origWsRef, 
   }
 
   return {
-    recPhase, recError, userPlaying, userReady, simultaneousPhase,
+    recPhase, recError, saveState, saveError, retrySaveRecording, userPlaying, userReady, simultaneousPhase,
     currentRecordId, setCurrentRecordId, history, setHistory, result, setResult,
     abPhase, setAbPhase, abPhaseRef,
     recBlobRef, liveCanvasRef, userWsRef, userContainerRef,

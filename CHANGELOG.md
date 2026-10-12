@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- Add responsive mobile web navigation and practice layouts, browser-specific recording formats, microphone interruption handling and failed-upload retry.
+
 ### Added
 - Native Windows setup with SQLite, CPU speech models, local start/stop scripts and a portable setup guide.
 - Continuous blind listening with non-pausing keyboard markers, word lookup, notes and sentence review links.

@@ -10,7 +10,7 @@ function StatCard({ icon: Icon, label, count, avg }) {
   const { t } = useTranslation()
   return (
     <Card>
-      <CardContent className="flex items-center gap-4 p-6">
+      <CardContent className="flex min-w-0 items-center gap-2 p-3 sm:gap-4 sm:p-6">
         <div className="p-2 rounded-md bg-muted shrink-0">
           <Icon className="w-5 h-5 text-muted-foreground" />
         </div>
@@ -34,7 +34,7 @@ function StreakCard({ streak }) {
   const { t } = useTranslation()
   return (
     <Card>
-      <CardContent className="flex items-center gap-4 p-6">
+      <CardContent className="flex min-w-0 items-center gap-2 p-3 sm:gap-4 sm:p-6">
         <div className={`p-2 rounded-md shrink-0 ${streak > 0 ? 'bg-orange-100 dark:bg-orange-950' : 'bg-muted'}`}>
           <Flame className={`w-5 h-5 ${streak > 0 ? 'text-orange-500' : 'text-muted-foreground'}`} />
         </div>
@@ -141,14 +141,14 @@ function RecentList({ recent }) {
       {recent.slice(0, 10).map(r => (
         <div
           key={r.record_id}
-          className="flex items-center justify-between rounded-lg border border-border/40 px-4 py-2.5 cursor-pointer hover:bg-muted/30 transition-colors"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/40 px-3 py-3 sm:px-4 sm:py-2.5 cursor-pointer hover:bg-muted/30 transition-colors"
           onClick={() => navigate(`/speaking/${r.audio_file_id}`)}
         >
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 basis-full sm:basis-auto flex-1">
             <p className="text-sm font-medium truncate">{r.audio_title}</p>
             <p className="text-xs text-muted-foreground truncate">{r.sentence_text}</p>
           </div>
-          <div className="flex items-center gap-3 ml-4 shrink-0">
+          <div className="flex items-center gap-3 sm:ml-4 shrink-0">
             {r.accuracy_score != null ? (
               <span className={`text-sm font-semibold tabular-nums ${
                 r.accuracy_score >= 80 ? 'text-green-500' : r.accuracy_score >= 50 ? 'text-yellow-500' : 'text-red-500'
@@ -171,7 +171,7 @@ function RecentList({ recent }) {
 function StatCardSkeleton() {
   return (
     <Card>
-      <CardContent className="flex items-center gap-4 p-6">
+      <CardContent className="flex min-w-0 items-center gap-2 p-3 sm:gap-4 sm:p-6">
         <div className="p-2 rounded-md bg-muted animate-pulse w-9 h-9" />
         <div className="space-y-2">
           <div className="h-6 w-10 rounded bg-muted animate-pulse" />
@@ -218,10 +218,10 @@ export default function Overview() {
   }
 
   return (
-    <div className="p-6">
+    <div className="min-w-0 p-4 sm:p-6">
       <h1 className="text-2xl font-bold mb-6">{t('overview.title')}</h1>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
         {loading ? (
           <>
             <StatCardSkeleton />
@@ -267,7 +267,7 @@ export default function Overview() {
       </div>
 
       <h2 className="text-base font-semibold mb-4">{t('overview.practiceCalendar')}</h2>
-      <Heatmap />
+      <div className="max-w-full overflow-x-auto" aria-label={t('overview.practiceCalendar')} tabIndex={0}><Heatmap /></div>
     </div>
   )
 }

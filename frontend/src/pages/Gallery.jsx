@@ -30,7 +30,7 @@ function PillBar({ items, active, onSelect, allLabel }) {
     <div className="flex flex-wrap gap-1.5">
       <button
         onClick={() => onSelect(null)}
-        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
+        className={`max-w-full break-words px-3 py-2 sm:py-1 rounded-full text-xs font-medium transition-colors border ${
           active === null
             ? 'bg-primary text-primary-foreground border-primary'
             : 'bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'
@@ -42,7 +42,7 @@ function PillBar({ items, active, onSelect, allLabel }) {
         <button
           key={item.id}
           onClick={() => onSelect(item.id)}
-          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
+          className={`max-w-full break-words px-3 py-2 sm:py-1 rounded-full text-xs font-medium transition-colors border ${
             active === item.id
               ? 'bg-primary text-primary-foreground border-primary'
               : 'bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'
@@ -138,7 +138,7 @@ function ImportDialog({ episode, collections, open, onOpenChange, onSuccess }) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent showCloseButton={!busy}>
+      <DialogContent showCloseButton={!busy} className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t('gallery.import')}</DialogTitle>
         </DialogHeader>
@@ -228,14 +228,14 @@ function EpisodeCard({ episode, collections }) {
 
   return (
     <>
-      <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
+      <div className="min-w-0 flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
         {/* Source · Program */}
-        <div className="text-xs text-muted-foreground">
+        <div className="break-words text-xs text-muted-foreground">
           {episode.source_label} · {episode.program}
         </div>
 
         {/* Title */}
-        <div className="text-sm font-semibold text-foreground leading-snug line-clamp-2 flex-1">
+        <div className="break-words text-sm font-semibold text-foreground leading-snug line-clamp-2 flex-1">
           {episode.title}
         </div>
 
@@ -256,7 +256,7 @@ function EpisodeCard({ episode, collections }) {
             {t(levelKey(episode.level))}
           </Badge>
           <button
-            className="ml-auto text-xs px-2 py-0.5 rounded-full border transition-colors disabled:opacity-40
+            className="ml-auto text-xs px-3 py-2 sm:px-2 sm:py-0.5 rounded-full border transition-colors disabled:opacity-40
               border-border text-muted-foreground hover:border-primary hover:text-primary
               disabled:hover:border-border disabled:hover:text-muted-foreground"
             onClick={() => setDialogOpen(true)}
@@ -358,7 +358,7 @@ export default function Gallery() {
   const episodes = filteredEpisodes.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full min-h-0 min-w-0 flex-col">
 
       {loading && (
         <div className="flex-1 flex items-center justify-center">
@@ -374,8 +374,8 @@ export default function Gallery() {
       )}
 
       {!loading && !error && data && (
-        <div className="flex-1 overflow-auto">
-          <div className="px-6 py-4 flex flex-col gap-3 border-b border-border">
+        <div className="min-h-0 min-w-0 flex-1 overflow-auto">
+          <div className="px-4 sm:px-6 py-4 flex flex-col gap-3 border-b border-border">
             {/* Source pills */}
             <PillBar
               items={sources.map(s => ({ id: s.id, label: s.label }))}
@@ -401,7 +401,7 @@ export default function Gallery() {
             />
           </div>
 
-          <div className="px-6 py-4 flex flex-col gap-6">
+          <div className="px-4 sm:px-6 py-4 flex flex-col gap-6">
             {filteredEpisodes.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t('gallery.noEpisodes')}</p>
             ) : (
@@ -419,9 +419,10 @@ export default function Gallery() {
                 {totalPages > 1 && (
                   <div className="flex items-center justify-center gap-3">
                     <button
+                      aria-label="上一页"
                       onClick={() => setPage(p => Math.max(1, p - 1))}
                       disabled={safePage === 1}
-                      className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+                      className="inline-flex h-11 w-11 sm:h-7 sm:w-7 items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
                     >
                       <ChevronLeft className="size-4" />
                     </button>
@@ -429,9 +430,10 @@ export default function Gallery() {
                       {safePage} / {totalPages}
                     </span>
                     <button
+                      aria-label="下一页"
                       onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                       disabled={safePage === totalPages}
-                      className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+                      className="inline-flex h-11 w-11 sm:h-7 sm:w-7 items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
                     >
                       <ChevronRight className="size-4" />
                     </button>

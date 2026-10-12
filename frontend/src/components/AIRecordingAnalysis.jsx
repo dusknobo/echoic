@@ -88,7 +88,7 @@ function AnalysisResult({ result, selectedSentence, comparison }) {
   const connectedSpeech = Array.isArray(result.connected_speech) ? result.connected_speech : []
   const limitations = Array.isArray(result.limitations) ? result.limitations : []
   return (
-    <div className="space-y-4 rounded-lg border border-border/50 p-4" data-testid="ai-analysis-result">
+    <div className="min-w-0 break-words space-y-4 rounded-lg border border-border/50 p-4" data-testid="ai-analysis-result">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium">{PROVIDERS[result.provider] || result.provider} · {isFeedback ? 'AI 参考反馈' : '专用发音评测'}</p>
         {result.created_at && <time className="text-[11px] text-muted-foreground">{new Date(result.created_at).toLocaleString('zh-CN')}</time>}
@@ -106,7 +106,7 @@ function AnalysisResult({ result, selectedSentence, comparison }) {
         <p className="mb-2 text-xs font-medium">单词评测 · 词分</p>
         <div className="flex flex-wrap gap-2">{words.map((word, index) => <button key={index} type="button" aria-label={`对比回听：${word.word}`} aria-pressed={selection?.id === `word-${index}`}
           disabled={comparison?.disabled} onClick={() => selectIssue(`word-${index}`, word.word)}
-          className={`inline-flex items-center gap-2 rounded-md border px-2 py-1 text-xs transition-colors hover:bg-accent disabled:opacity-50 ${selection?.id === `word-${index}` ? 'border-primary bg-accent' : 'border-transparent bg-muted'}`}>
+          className={`inline-flex max-w-full flex-wrap items-center gap-2 rounded-md border px-2 py-1 text-xs transition-colors hover:bg-accent disabled:opacity-50 ${selection?.id === `word-${index}` ? 'border-primary bg-accent' : 'border-transparent bg-muted'}`}>
           <span>{word.word}</span><span className="tabular-nums text-muted-foreground">{displayScore(word.accuracy_score ?? word.overall_score)}</span>
         </button>)}</div>
         <details className="mt-3 rounded-md border border-border/30 p-2">
@@ -132,7 +132,7 @@ function AnalysisResult({ result, selectedSentence, comparison }) {
         <p className="text-xs font-medium">连读、弱读与语流</p>
         {connectedSpeech.map((item, index) => <div key={index} className="space-y-1 rounded-md bg-muted/50 p-3">
           <div className="flex flex-wrap items-center gap-2">
-            {item.text ? <button type="button" className="text-left text-sm font-medium text-primary underline decoration-primary/30 underline-offset-4 hover:decoration-primary disabled:opacity-50" aria-label={`对比回听：${item.text}`} aria-pressed={selection?.id === `phrase-${index}`} disabled={comparison?.disabled} onClick={() => selectIssue(`phrase-${index}`, item.text)}>{item.text}</button> : <span className="text-sm font-medium">{item.category || '语流反馈'}</span>}
+            {item.text ? <button type="button" className="max-w-full break-words text-left text-sm font-medium text-primary underline decoration-primary/30 underline-offset-4 hover:decoration-primary disabled:opacity-50" aria-label={`对比回听：${item.text}`} aria-pressed={selection?.id === `phrase-${index}`} disabled={comparison?.disabled} onClick={() => selectIssue(`phrase-${index}`, item.text)}>{item.text}</button> : <span className="text-sm font-medium">{item.category || '语流反馈'}</span>}
             {item.text && item.category && <span className="text-[11px] text-muted-foreground">{item.category}</span>}
             <span className="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">{EVIDENCE_LABELS[item.evidence] || EVIDENCE_LABELS.uncertain}</span>
           </div>
@@ -224,12 +224,12 @@ export default function AIRecordingAnalysis({ recordId, disabled = false, select
   }
 
   return (
-    <div className="space-y-4 px-5 py-4" data-testid="ai-recording-analysis">
-      <div className="flex items-center justify-between gap-3">
+    <div className="min-w-0 space-y-4 px-3 py-4 sm:px-5" data-testid="ai-recording-analysis">
+      <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
         <p className="flex items-center gap-2 text-sm font-medium"><Sparkles className="size-4" />AI 录音分析</p>
-        <div className="flex items-center gap-3">
-          <button type="button" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50" disabled={busy} onClick={() => setSettingsReload(value => value + 1)}><RotateCcw className="size-3" />刷新配置</button>
-          <Link to="/settings" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"><Settings2 className="size-3.5" />AI 设置</Link>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <button type="button" className="inline-flex min-h-11 items-center gap-1 text-xs text-muted-foreground hover:text-foreground sm:min-h-0 disabled:opacity-50" disabled={busy} onClick={() => setSettingsReload(value => value + 1)}><RotateCcw className="size-3" />刷新配置</button>
+          <Link to="/settings" className="inline-flex min-h-11 items-center gap-1 text-xs text-muted-foreground hover:text-foreground sm:min-h-0"><Settings2 className="size-3.5" />AI 设置</Link>
         </div>
       </div>
       <p className="text-xs leading-relaxed text-muted-foreground">点击 AI 分析，将当前选择的跟读录音和参考文本发送到设置中的默认服务。结果会保存在这条录音下，单次录音最长 60 秒。</p>

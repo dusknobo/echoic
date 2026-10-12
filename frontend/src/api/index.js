@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { recordingFilename } from '@/lib/recording'
 
 const api = axios.create({ baseURL: '/api' })
 
@@ -31,7 +32,7 @@ export const audioApi = {
 export const practiceApi = {
   saveRecording: (audioFileId, sentenceIndex, blob) => {
     const form = new FormData()
-    form.append('file', blob, 'recording.webm')
+    form.append('file', blob, recordingFilename(blob))
     return api.post(`/practice/${audioFileId}/sentence/${sentenceIndex}/save`, form)
   },
   scoreRecording: (recordId) => api.post(`/practice/record/${recordId}/score`),
@@ -62,7 +63,7 @@ export const oralApi = {
   },
   submitAttempt: ({ questionType, questionLanguage, questionPrompt, questionDifficulty, questionReference, timerSecs, blob }) => {
     const form = new FormData()
-    form.append('file', blob, 'oral_recording.webm')
+    form.append('file', blob, recordingFilename(blob, 'oral_recording'))
     form.append('question_type', questionType)
     form.append('question_language', questionLanguage)
     form.append('question_prompt', questionPrompt)

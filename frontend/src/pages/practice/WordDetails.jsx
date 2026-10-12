@@ -41,18 +41,18 @@ export default function WordDetails({ word, onPronounce, onClose, playing, pronu
   const hasMore = entry?.meanings?.some(meaning => meaning.definitions.length > 3)
   return (
     <section aria-label={t('practice.wordDetails')} className="mt-3 rounded-lg border border-border bg-muted/20 p-3">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row">
         <div className="min-w-0">
           <h3 className="break-words text-lg font-semibold">{query || word.text}</h3>
           {word.ipa && <p className="font-[family-name:var(--font-ipa)] text-sm text-muted-foreground">{word.ipa}</p>}
           {entry?.word && entry.word !== query && <p className="mt-0.5 text-xs text-muted-foreground">{t('practice.wordBaseForm', { word: entry.word })}</p>}
         </div>
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex w-full shrink-0 items-center justify-between gap-1 sm:w-auto sm:justify-start">
           <Button variant="outline" size="sm" disabled={pronunciationDisabled} onClick={onPronounce}>
             <Volume2 className={`size-4 ${playing ? 'text-primary' : ''}`} />
             {t('practice.listenWord')}
           </Button>
-          <Button variant="ghost" size="icon" className="size-7" onClick={onClose} aria-label={t('practice.closeWordDetails')}>
+          <Button variant="ghost" size="icon" className="size-11 sm:size-7" onClick={onClose} aria-label={t('practice.closeWordDetails')}>
             <X className="size-4" />
           </Button>
         </div>
@@ -71,7 +71,7 @@ export default function WordDetails({ word, onPronounce, onClose, playing, pronu
           </div>
         )}
         {entry && (
-          <div className="max-h-72 space-y-3 overflow-y-auto pr-1" lang="en">
+          <div className="max-h-72 break-words space-y-3 overflow-y-auto pr-1" lang="en">
             {entry.meanings.map((meaning, i) => (
               <div key={`${meaning.partOfSpeech}-${i}`}>
                 <p className="text-xs font-semibold italic text-primary">{meaning.partOfSpeech}</p>

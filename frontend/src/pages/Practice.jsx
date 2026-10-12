@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import WaveSurfer from 'wavesurfer.js'
 import {
-  ChevronLeft, ChevronRight, Mic, Play, Pause,
+  ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Mic, Play, Pause,
   Loader2, Repeat, Repeat1, Gauge, Download,
   BarChart2, Check, X, ArrowLeftRight, MoreVertical, Headphones,
 } from 'lucide-react'
@@ -18,6 +18,7 @@ import { audioApi, practiceApi } from '@/api'
 import { getSegmentBlob } from '@/lib/audioSegment'
 import { sentenceAtTime } from '@/lib/listening'
 import { useSettings } from '@/lib/settings'
+import { recordingFilename } from '@/lib/recording'
 import { usePracticeRecorder } from '@/hooks/usePracticeRecorder'
 import { useWordPronunciation } from '@/hooks/useWordPronunciation'
 import { useAIComparisonPlayback } from '@/hooks/useAIComparisonPlayback'
@@ -40,6 +41,7 @@ export default function Practice() {
   const [phonemesLoading, setPhonemesLoading] = useState(false)
   const [analysis, setAnalysis] = useState(null)
   const [analyzing, setAnalyzing] = useState(false)
+  const [mobileSentencesOpen, setMobileSentencesOpen] = useState(false)
 
   // ── Original player state ──
   const [origReady, setOrigReady] = useState(false)
@@ -72,7 +74,7 @@ export default function Practice() {
 
   // ── Recorder hook ──
   const {
-    recPhase, recError, userPlaying, userReady, simultaneousPhase,
+    recPhase, recError, saveState, saveError, retrySaveRecording, userPlaying, userReady, simultaneousPhase,
     recBlobRef, liveCanvasRef,
     userContainerRef, userWsRef,
     currentRecordId,
@@ -162,6 +164,7 @@ export default function Practice() {
 
   // ── Sentence selection ──
   function handleSelect(sentence) {
+    setMobileSentencesOpen(false)
     stopAIComparison()
     stopWordPlayback()
     const operation = ++selectionRevisionRef.current
@@ -234,7 +237,7 @@ export default function Practice() {
         case 'Space':
           if (e.target.closest?.('button, a, [role=button], [role=tab]')) return
           e.preventDefault()
-          if (recPhase === 'recording' || recPhase === 'paused') return
+          if (recPhase === 'requesting' || recPhase === 'recording' || recPhase === 'paused') return
           if (!e.repeat && origReady) toggleOriginalPlayback()
           break
         case 'KeyR':
@@ -253,7 +256,7 @@ export default function Practice() {
         case 'ArrowLeft': e.preventDefault(); selectRelative(-1); break
         case 'ArrowRight': e.preventDefault(); selectRelative(1); break
         case 'Escape':
-          if (recPhase === 'recording' || recPhase === 'paused') {
+          if (recPhase === 'requesting' || recPhase === 'recording' || recPhase === 'paused') {
             e.preventDefault(); resetRec()
           }
           break
@@ -279,7 +282,7 @@ export default function Practice() {
     return []
   }, [result, selectedSentence, phonemes])
 
-  const pronunciationDisabled = recPhase === 'recording' || recPhase === 'paused'
+  const pronunciationDisabled = recPhase === 'requesting' || recPhase === 'recording' || recPhase === 'paused'
   const { playWord, stopWordPlayback, playingWordIndex, wordPlaybackError, pronunciationSource } = useWordPronunciation({
     audioFileId, selectedSentence, words, audioCacheRef, playbackRate: speed,
     onBeforePlay: () => { stopAIComparison(); stopAllPlayback() }, disabled: pronunciationDisabled,
@@ -354,6 +357,7 @@ export default function Practice() {
     <Tooltip key="dl">
       <TooltipTrigger
         className={rowBtnCls}
+        aria-label={t('practice.downloadOriginal')}
         disabled={!origBlobRef.current}
         onClick={() => origBlobRef.current && downloadBlob(origBlobRef.current, `sentence-${selectedSentence?.index ?? 0}.wav`)}>
         <Download className="size-4" />
@@ -366,7 +370,7 @@ export default function Practice() {
 
   const recActions = (recPhase === 'recorded' || recPhase === 'submitting') ? [
     <Tooltip key="mic">
-      <TooltipTrigger className={`${rowBtnCls} text-rose-400 hover:text-rose-500`} disabled={!selectedSentence} onClick={startRecording}>
+      <TooltipTrigger className={`${rowBtnCls} text-rose-400 hover:text-rose-500`} disabled={!selectedSentence} aria-label={t('practice.reRecord')} onClick={startRecording}>
         <Mic className="size-4" />
       </TooltipTrigger>
       <TooltipContent side="left">{t('practice.reRecord')}</TooltipContent>
@@ -388,7 +392,7 @@ export default function Practice() {
       </TooltipContent>
     </Tooltip>,
     <DropdownMenu key="more">
-      <DropdownMenuTrigger className={rowBtnCls}>
+      <DropdownMenuTrigger className={rowBtnCls} aria-label="录音操作">
         <MoreVertical className="size-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent side="left" align="end">
@@ -398,7 +402,7 @@ export default function Practice() {
         </DropdownMenuItem>
         <DropdownMenuItem
           disabled={!recBlobRef.current}
-          onClick={() => recBlobRef.current && downloadBlob(recBlobRef.current, `recording-${selectedSentence?.index ?? 0}.webm`)}>
+          onClick={() => recBlobRef.current && downloadBlob(recBlobRef.current, recordingFilename(recBlobRef.current, `recording-${selectedSentence?.index ?? 0}`))}>
           <Download className="size-4" />
           {t('practice.downloadRecording')}
         </DropdownMenuItem>
@@ -409,24 +413,29 @@ export default function Practice() {
   // ── Render ──
   return (
     <TooltipProvider>
-      <div className="flex h-screen flex-col overflow-hidden">
+      <div className="flex h-full min-h-[32rem] min-w-0 flex-col overflow-hidden md:min-h-0">
         {/* Breadcrumb */}
-        <div className="flex h-10 shrink-0 items-center gap-2 border-b px-5 text-sm text-muted-foreground">
-          <Link to="/speaking" className="flex items-center gap-1 transition-colors hover:text-foreground">
+        <div className="flex min-h-11 min-w-0 shrink-0 items-center gap-2 border-b px-3 text-sm text-muted-foreground md:h-10 md:min-h-10 md:px-5">
+          <Link to="/speaking" className="flex shrink-0 items-center gap-1 transition-colors hover:text-foreground">
             <ChevronLeft className="size-4" />
             {t('nav.speaking')}
           </Link>
           {audioTitle && (<><span className="text-border">/</span>
-            <span className="max-w-xs truncate text-foreground">{audioTitle}</span></>)}
-          <Link to={`/listening/${audioFileId}`} className="ml-auto inline-flex items-center gap-1 whitespace-nowrap hover:text-foreground">
+            <span className="min-w-0 max-w-xs truncate text-foreground">{audioTitle}</span></>)}
+          <Link to={`/listening/${audioFileId}`} className="ml-auto inline-flex shrink-0 items-center gap-1 whitespace-nowrap hover:text-foreground">
             <Headphones className="size-4" /> 连续盲听
           </Link>
         </div>
 
-        {/* Main panels */}
-        <div className="mx-4 mt-3 flex min-h-0 flex-1 overflow-hidden rounded-lg border border-border/40 bg-background flex-row">
-          {/* Left: sentence list */}
-          <section className="flex min-h-0 h-full basis-2/5 flex-col border-r border-border/40">
+        <button type="button" aria-expanded={mobileSentencesOpen} aria-controls="practice-sentence-list" onClick={() => setMobileSentencesOpen(value => !value)} className="mx-2 mt-2 flex min-h-11 min-w-0 shrink-0 items-center gap-2 rounded-lg border px-3 text-left md:hidden">
+          <span className="shrink-0 text-xs font-medium">{t('practice.sentences')} {Math.max(selectedIndex + 1, 1)}/{Math.max(sentences.length, 1)}</span>
+          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{mobileSentencesOpen ? '选择后返回练习' : selectedSentence?.text || t('practice.selectSentence')}</span>
+          {mobileSentencesOpen ? <ChevronUp aria-hidden="true" className="size-4 shrink-0" /> : <ChevronDown aria-hidden="true" className="size-4 shrink-0" />}
+        </button>
+
+        {/* The sentence list and players stay mounted when the mobile panel changes. */}
+        <div className="mx-2 mt-2 flex min-h-0 min-w-0 flex-1 flex-row overflow-hidden rounded-lg border border-border/40 bg-background md:mx-4 md:mt-3">
+          <section id="practice-sentence-list" aria-label={t('practice.sentences')} className={`${mobileSentencesOpen ? 'flex' : 'hidden'} h-full min-h-0 min-w-0 w-full flex-col md:flex md:w-auto md:basis-2/5 md:border-r md:border-border/40`}>
             <div className="flex items-center justify-between border-b border-border/30 px-3 py-2 shrink-0">
               <span className="text-sm font-medium">{t('practice.sentences')}</span>
               <span className="tabular-nums text-[11px] text-muted-foreground">
@@ -448,15 +457,15 @@ export default function Practice() {
           </section>
 
           {/* Right: tabs */}
-          <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+          <section aria-label="句子练习" className={`${mobileSentencesOpen ? 'hidden' : 'flex'} h-full min-h-0 min-w-0 flex-1 flex-col md:flex`}>
             <Tabs defaultValue="translation" className="flex min-h-0 flex-1 flex-col">
               <div className="shrink-0 border-b border-border/40 px-3 py-2">
-                <TabsList className="grid h-8 w-full grid-cols-2 bg-muted/50">
+                <TabsList className="grid h-11 w-full grid-cols-2 bg-muted/50 md:h-8">
                   <TabsTrigger value="translation">{t('practice.analysis')}</TabsTrigger>
                   <TabsTrigger value="practice">{t('practice.myPractice')}</TabsTrigger>
                 </TabsList>
               </div>
-              <TabsContent value="translation" className="mt-0 flex-1 overflow-y-auto px-5 py-5 data-[state=inactive]:hidden">
+              <TabsContent value="translation" className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto px-3 py-3 data-[state=inactive]:hidden md:px-5 md:py-5">
                 <AnalysisTab key={audioFileId}
                   onPronounceWord={playWord}
                   onStopWord={stopWordPlayback}
@@ -479,7 +488,7 @@ export default function Practice() {
                   history={history}
                   currentRecordId={currentRecordId}
                   comparison={comparison}
-                  analysisDisabled={!!comparison.playing || recPhase === 'recording' || recPhase === 'paused' || recPhase === 'submitting' || origPlaying || userPlaying || !!abPhase || simultaneousPhase === 'playing' || playingWordIndex !== null}
+                  analysisDisabled={!!comparison.playing || pronunciationDisabled || recPhase === 'submitting' || origPlaying || userPlaying || !!abPhase || simultaneousPhase === 'playing' || playingWordIndex !== null}
                   result={result}
                   wordSummary={wordSummary}
                   selectedSentence={selectedSentence}
@@ -492,11 +501,11 @@ export default function Practice() {
         </div>
 
         {/* Bottom: waveforms + controls */}
-        <div className="shrink-0 border-t border-border/30 bg-muted/5 px-5 py-3">
-          <div className="space-y-2.5">
+        <div aria-label="录音与播放控制" className="max-h-[55dvh] shrink-0 overflow-y-auto border-t border-border/30 bg-muted/5 px-2 py-2 md:max-h-none md:overflow-visible md:px-5 md:py-3">
+          <div className="min-w-0 space-y-2 md:space-y-2.5">
             {/* User recording row */}
             {(recPhase === 'recording' || recPhase === 'paused') ? (
-              <div className="min-h-[72px] flex items-center justify-center gap-3 overflow-hidden rounded-lg border border-border/30 bg-muted/5">
+              <div className="flex min-h-[72px] flex-wrap items-center justify-center gap-2 overflow-hidden rounded-lg border border-border/30 bg-muted/5 px-2 py-2 md:gap-3 md:px-0 md:py-0">
                 <canvas
                   ref={liveCanvasRef}
                   className={`shrink-0 transition-opacity ${recPhase === 'paused' ? 'opacity-40' : ''}`}
@@ -504,21 +513,22 @@ export default function Practice() {
                 />
                 <div className="flex shrink-0 items-center gap-0.5">
                   <Tooltip>
-                    <TooltipTrigger className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground" onClick={resetRec}>
+                    <TooltipTrigger aria-label={t('practice.discardRecording')} className="inline-flex size-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:size-7" onClick={resetRec}>
                       <X className="size-4" />
                     </TooltipTrigger>
                     <TooltipContent side="top">{t('practice.discardRecording')}</TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger
-                      className={`inline-flex size-7 items-center justify-center rounded-md transition-colors hover:bg-accent ${recPhase === 'paused' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                      aria-label={recPhase === 'paused' ? t('practice.continueRecording') : t('practice.pause')}
+                      className={`inline-flex size-11 items-center justify-center rounded-md transition-colors hover:bg-accent md:size-7 ${recPhase === 'paused' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
                       onClick={recPhase === 'paused' ? resumeRecording : pauseRecording}>
                       {recPhase === 'paused' ? <Play className="size-4" /> : <Pause className="size-4" />}
                     </TooltipTrigger>
                     <TooltipContent side="top">{recPhase === 'paused' ? t('practice.continueRecording') : t('practice.pause')}</TooltipContent>
                   </Tooltip>
                   <Tooltip>
-                    <TooltipTrigger className="inline-flex size-7 items-center justify-center rounded-md text-primary transition-colors hover:bg-accent" onClick={finishRecording}>
+                    <TooltipTrigger aria-label={t('practice.finishRecording')} className="inline-flex size-11 items-center justify-center rounded-md text-primary transition-colors hover:bg-accent md:size-7" onClick={finishRecording}>
                       <Check className="size-4" />
                     </TooltipTrigger>
                     <TooltipContent side="top">{t('practice.finishRecording')}</TooltipContent>
@@ -530,15 +540,17 @@ export default function Practice() {
                 containerRef={userContainerRef}
                 actions={recActions}
                 emptyState={
-                  recPhase === 'idle'
+                  recPhase === 'requesting'
+                    ? <button type="button" disabled aria-label="等待麦克风授权" className="flex h-full w-full flex-col items-center justify-center gap-1 text-xs text-muted-foreground"><Loader2 aria-hidden="true" className="size-5 animate-spin" />等待麦克风授权…</button>
+                    : recPhase === 'idle'
                     ? recError
                       ? (
                         <button type="button" onClick={startRecording} className="flex h-full w-full flex-col items-center justify-center gap-1">
-                          <p className="text-[11px] font-medium text-red-500">{recError}</p>
+                          <p className="text-[11px] font-medium text-red-500">未能开始录音</p>
                           <p className="text-[10px] text-muted-foreground/60">{t('practice.tapToRetry')}</p>
                         </button>
                       ) : (
-                        <button type="button" disabled={!selectedSentence} onClick={startRecording} className="flex h-full w-full flex-col items-center justify-center gap-1 disabled:opacity-40">
+                        <button type="button" disabled={!selectedSentence} aria-label={t('practice.clickToRecord')} onClick={startRecording} className="flex h-full w-full flex-col items-center justify-center gap-1 disabled:opacity-40">
                           <Mic className="size-5 text-rose-400" />
                           <p className="text-[11px] text-muted-foreground/60">
                             {selectedSentence ? t('practice.clickToRecord') : t('practice.selectFirst')}
@@ -562,32 +574,34 @@ export default function Practice() {
             <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
               <Tooltip>
                 <TooltipTrigger
-                  className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                  aria-label={loopMode === 'sentence' ? t('practice.loopSentence') : t('practice.loopList')}
+                  className="inline-flex size-11 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground md:size-8"
                   onClick={() => setLoopMode(m => m === 'sentence' ? 'list' : 'sentence')}>
                   {loopMode === 'sentence' ? <Repeat1 className="size-4" /> : <Repeat className="size-4" />}
                 </TooltipTrigger>
                 <TooltipContent>{loopMode === 'sentence' ? t('practice.loopSentence') : t('practice.loopList')}</TooltipContent>
               </Tooltip>
-              <Button variant="ghost" size="icon" className="size-8" disabled={selectedIndex <= 0} onClick={() => selectRelative(-1)}>
+              <Button variant="ghost" size="icon" className="size-11 md:size-8" aria-label="上一句" disabled={selectedIndex <= 0 || recPhase === 'requesting'} onClick={() => selectRelative(-1)}>
                 <ChevronLeft className="size-4" />
               </Button>
               <Button
                 size="icon"
                 className="size-11 rounded-full bg-foreground text-background shadow-md transition-transform hover:bg-foreground/90 active:scale-95"
-                disabled={!origReady}
+                disabled={!origReady || pronunciationDisabled}
                 onClick={toggleOriginalPlayback}
                 aria-label={simultaneousPhase === 'playing' ? t('practice.pauseTogether') : simultaneousPhase === 'paused' ? t('practice.resumeTogether') : origPlaying ? t('practice.pauseOriginal') : t('practice.playOriginal')}
               >
                 {origPlaying || simultaneousPhase === 'playing' ? <Pause className="size-5" /> : <Play className="size-5" />}
               </Button>
-              <Button variant="ghost" size="icon" className="size-8"
-                disabled={selectedIndex === -1 || selectedIndex >= sentences.length - 1}
+              <Button variant="ghost" size="icon" className="size-11 md:size-8" aria-label="下一句"
+                disabled={recPhase === 'requesting' || selectedIndex === -1 || selectedIndex >= sentences.length - 1}
                 onClick={() => selectRelative(1)}>
                 <ChevronRight className="size-4" />
               </Button>
               <Tooltip>
                 <TooltipTrigger
-                  className="inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  aria-label={`${t('practice.playbackSpeed')} ${speed}x`}
+                  className="inline-flex h-11 items-center gap-1.5 rounded-full px-2.5 text-muted-foreground hover:bg-accent hover:text-foreground md:h-8"
                   onClick={cycleSpeed}>
                   <Gauge className="size-4" />
                   <span className="tabular-nums text-xs">{speed % 1 === 0 ? speed.toFixed(1) : speed}x</span>
@@ -608,8 +622,17 @@ export default function Practice() {
             {userReady && (
               <p className="text-center text-[11px] text-muted-foreground">{t('practice.togetherHint')}</p>
             )}
-            {recError && recPhase !== 'idle' && (
-              <p role="alert" className="text-center text-xs text-red-500">{recError}</p>
+            {recPhase === 'requesting' && <div className="flex justify-center"><Button variant="outline" size="sm" onClick={resetRec}>取消麦克风请求</Button></div>}
+            {saveState === 'saving' && <p role="status" className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground"><Loader2 aria-hidden="true" className="size-3.5 animate-spin" />录音保存中…</p>}
+            {saveState === 'saved' && recPhase === 'recorded' && <p role="status" className="text-center text-xs text-muted-foreground">录音已保存</p>}
+            {saveError && (
+              <div role="alert" className="flex flex-wrap items-center justify-center gap-2 rounded-lg border border-destructive/30 p-2 text-xs text-destructive">
+                <p className="min-w-0 break-words">{saveError}</p>
+                <Button variant="outline" size="sm" onClick={retrySaveRecording} disabled={saveState === 'saving'}>重试保存</Button>
+              </div>
+            )}
+            {recError && (
+              <p role="alert" className="break-words text-center text-xs text-red-500">{recError}</p>
             )}
           </div>
         </div>

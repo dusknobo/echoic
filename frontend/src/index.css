@@ -133,6 +133,15 @@
     @apply font-sans;
     }
 
+  html, body, #root {
+    min-width: 0;
+    height: 100%;
+  }
+
+  button, a, [role="button"] {
+    touch-action: manipulation;
+  }
+
   /* Custom scrollbar */
   * {
     scrollbar-width: thin;
@@ -162,3 +171,26 @@
     background: oklch(0.65 0 0 / 0.35);
   }
 }
+/* Mobile form and touch dimensions take precedence over desktop utility sizes. */
+  @media (max-width: 767px) {
+    button:not([role="switch"]):not(.touch-inline),
+    [role="button"], [role="combobox"], select {
+      min-height: 44px;
+    }
+
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    textarea, select {
+      font-size: 16px;
+    }
+
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+      min-height: 44px;
+      min-width: 0;
+    }
+
+    [data-slot="dialog-content"] {
+      max-height: calc(100dvh - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+  }

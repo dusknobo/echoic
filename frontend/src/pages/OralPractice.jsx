@@ -86,8 +86,8 @@ export default function OralPractice() {
   const isRecordedPhase = phase === 'recorded'
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center gap-1.5 px-4 py-3 border-b border-border/60 shrink-0">
+    <div className="flex h-full min-h-0 min-w-0 flex-col">
+      <div className="flex flex-wrap items-center gap-1.5 px-4 py-3 border-b border-border/60 shrink-0">
         <button
           onClick={() => navigate('/oral')}
           className="text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -98,10 +98,10 @@ export default function OralPractice() {
         <span className="text-sm text-foreground font-medium">{t(`oral.types.${type}.name`)}</span>
       </div>
 
-      <div className="flex-1 overflow-auto p-4 flex flex-col gap-4 max-w-2xl mx-auto w-full">
+      <div className="min-h-0 min-w-0 flex-1 overflow-auto p-4 flex flex-col gap-4 max-w-2xl mx-auto w-full">
 
         {error && (
-          <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg p-3">
+          <div role="alert" className="flex items-start gap-2 break-words text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg p-3">
             <AlertCircle className="w-4 h-4 shrink-0" />
             {error}
           </div>
@@ -116,7 +116,7 @@ export default function OralPractice() {
               disabled={phase === 'generating'}
               placeholder={t(isReadAloud ? 'oral.placeholderReadAloud' : 'oral.placeholderPrompt')}
               rows={5}
-              className="w-full rounded-xl border border-border/60 bg-card px-4 py-3 text-sm text-foreground leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-muted-foreground"
+              className="w-full rounded-xl border border-border/60 bg-card px-4 py-3 text-sm text-foreground leading-relaxed resize-y min-h-32 focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-muted-foreground"
             />
             <Button
               variant="ghost"
@@ -148,7 +148,7 @@ export default function OralPractice() {
 
         {/* Post-recording actions */}
         {isRecordedPhase && (
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Button onClick={submitRecording} className="flex-1 gap-2">
               <CheckCircle className="w-4 h-4" />
               {t('oral.submitScore')}
@@ -161,7 +161,7 @@ export default function OralPractice() {
         )}
 
         {/* Recording controls */}
-        {['idle', 'recording', 'submitting'].includes(phase) && (
+        {['idle', 'requesting', 'recording', 'submitting'].includes(phase) && (
           <div className="flex flex-col gap-3">
             {phase === 'recording' && (
               <div className="h-14 rounded-lg bg-muted overflow-hidden">
@@ -213,6 +213,12 @@ export default function OralPractice() {
                 {t('oral.startRecording')}
               </Button>
             )}
+            {phase === 'requesting' && (
+              <Button disabled aria-busy="true" className="gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                正在等待麦克风授权…
+              </Button>
+            )}
             {phase === 'recording' && (
               <Button onClick={stopRecording} variant="destructive" className="gap-2">
                 <Square className="w-4 h-4 fill-current" />
@@ -236,7 +242,7 @@ export default function OralPractice() {
                 <ScoreCard result={result} />
               ) : (
                 <div className="flex flex-col gap-4">
-                  <div className="flex justify-around py-2">
+                  <div className="flex flex-wrap justify-around gap-3 py-2">
                     {result.accuracy_score != null && (
                       <ScoreRing value={result.accuracy_score} label={t('score.accuracy')} />
                     )}
@@ -264,7 +270,7 @@ export default function OralPractice() {
                       {result.llm_highlights.map((h, i) => (
                         <span
                           key={i}
-                          className="text-xs px-2.5 py-1 rounded-full bg-muted border border-border text-muted-foreground"
+                          className="max-w-full break-words text-xs px-2.5 py-1 rounded-full bg-muted border border-border text-muted-foreground"
                         >
                           {h}
                         </span>
@@ -289,9 +295,9 @@ export default function OralPractice() {
 
         {/* Language + Difficulty selectors */}
         {isInputPhase && (
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
             <Select value={language} onValueChange={setLanguage}>
-              <SelectTrigger className="w-[130px] h-9 text-sm">
+              <SelectTrigger className="w-full min-w-0 h-9 text-sm sm:w-[130px]">
                 <SelectValue>{PRACTICE_LANGS.find(l => l.value === language)?.label ?? language}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -301,7 +307,7 @@ export default function OralPractice() {
               </SelectContent>
             </Select>
             <Select value={difficulty} onValueChange={setDifficulty}>
-              <SelectTrigger className="w-[100px] h-9 text-sm">
+              <SelectTrigger className="w-full min-w-0 h-9 text-sm sm:w-[100px]">
                 <SelectValue>{t(`oral.difficulty.${difficulty}`)}</SelectValue>
               </SelectTrigger>
               <SelectContent>

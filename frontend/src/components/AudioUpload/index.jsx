@@ -107,25 +107,29 @@ export default function AudioUpload({ onSuccess, collections = [] } = {}) {
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full min-w-0">
       <Tabs defaultValue="upload">
-        <TabsList className="w-full mb-4">
-          <TabsTrigger value="upload" className="flex-1">{t('upload.uploadFile')}</TabsTrigger>
-          <TabsTrigger value="url" className="flex-1">{t('upload.importLink')}</TabsTrigger>
+        <TabsList className="w-full mb-4 min-w-0">
+          <TabsTrigger value="upload" className="min-w-0 flex-1 px-2 text-xs sm:text-sm">{t('upload.uploadFile')}</TabsTrigger>
+          <TabsTrigger value="url" className="min-w-0 flex-1 px-2 text-xs sm:text-sm">{t('upload.importLink')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="upload">
           <div className="flex flex-col gap-4">
             <div
-              className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-6 py-10 cursor-pointer transition-colors ${dragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/40'}`}
-              onClick={() => inputRef.current?.click()}
+              className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-7 sm:px-6 sm:py-10 text-center cursor-pointer transition-colors ${dragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/40'}`}
+              role="button"
+              tabIndex={loading ? -1 : 0}
+              aria-label={t('upload.uploadFile')}
+              onKeyDown={event => { if (!loading && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); inputRef.current?.click() } }}
+              onClick={() => { if (!loading) inputRef.current?.click() }}
               onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
               onDragLeave={() => setDragging(false)}
               onDrop={handleDrop}
             >
               <UploadCloud className="size-8 text-muted-foreground" />
               {file ? (
-                <span className="text-sm font-medium text-foreground">{file.name}</span>
+                <span className="max-w-full break-all text-sm font-medium text-foreground">{file.name}</span>
               ) : (
                 <span className="text-sm text-muted-foreground">
                   {t('upload.dragOrClick', { defaultValue: '拖拽文件或' })}<span className="text-foreground underline underline-offset-2">{t('upload.dragOrClick_click', { defaultValue: '点击选择' })}</span>
@@ -151,7 +155,7 @@ export default function AudioUpload({ onSuccess, collections = [] } = {}) {
               <div className="flex flex-col gap-1.5">
                 <Label>{t('library.collection')}</Label>
                 <Select value={collectionId ? String(collectionId) : '0'} onValueChange={v => setCollectionId(v === '0' ? null : Number(v))}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full min-w-0">
                     <span className="truncate">
                       {collectionId ? (collections.find(c => c.id === collectionId)?.name ?? t('library.defaultCollection')) : t('library.defaultCollection')}
                     </span>
@@ -201,7 +205,7 @@ export default function AudioUpload({ onSuccess, collections = [] } = {}) {
               <div className="flex flex-col gap-1.5">
                 <Label>{t('library.collection')}</Label>
                 <Select value={collectionId ? String(collectionId) : '0'} onValueChange={v => setCollectionId(v === '0' ? null : Number(v))}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full min-w-0">
                     <span className="truncate">
                       {collectionId ? (collections.find(c => c.id === collectionId)?.name ?? t('library.defaultCollection')) : t('library.defaultCollection')}
                     </span>
@@ -226,7 +230,7 @@ export default function AudioUpload({ onSuccess, collections = [] } = {}) {
       </Tabs>
 
       {error && (
-        <p className="mt-4 text-sm text-destructive">{error}</p>
+        <p role="alert" className="mt-4 break-words text-sm text-destructive">{error}</p>
       )}
     </div>
   )

@@ -1,38 +1,68 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { oralApi } from '@/api'
+import { createRecordingSession, recordingErrorMessage, recordingInterruptionMessage } from '@/lib/recording'
 
-// phases: idle → generating → idle(text ready) → recording → submitting → scored
+// phases: idle → generating → idle → requesting → recording → recorded → submitting → scored
 export function useOralPractice({ questionType, language, difficulty, topic } = {}) {
+  const { t } = useTranslation()
+  const tRef = useRef(t)
+  tRef.current = t
   const [phase, setPhase] = useState('idle')
   const [editableText, setEditableText] = useState('')
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
-
   const [timerEnabled, setTimerEnabled] = useState(true)
   const [timerSecs, setTimerSecs] = useState(30)
   const [countdown, setCountdown] = useState(0)
 
   const liveCanvasRef = useRef(null)
   const recBlobRef = useRef(null)
-  const recChunksRef = useRef([])
-  const recStreamRef = useRef(null)
-  const mediaRecorderRef = useRef(null)
+  const captureRef = useRef(null)
   const analyserRef = useRef(null)
   const animFrameRef = useRef(null)
   const timerRef = useRef(null)
-  const stopRecordingRef = useRef(null)
-  // Effective question captured at recording start — avoids stale closure in submitRecording
+  const revisionRef = useRef(0)
+  const submittingRef = useRef(false)
+  // Snapshot the question and its settings with the recording, including retries.
   const pendingQuestionRef = useRef(null)
-  // For read_aloud: LLM-generated instruction prompt (not user-editable)
   const llmPromptRef = useRef('')
 
-  useEffect(() => {
-    return () => {
-      recStreamRef.current?.getTracks().forEach(t => t.stop())
-      cancelAnimationFrame(animFrameRef.current)
-      clearInterval(timerRef.current)
-    }
+  const stopLiveViz = useCallback(() => {
+    cancelAnimationFrame(animFrameRef.current)
+    animFrameRef.current = null
+    analyserRef.current?.audioCtx.close().catch(() => {})
+    analyserRef.current = null
   }, [])
+
+  const clearTimer = useCallback(() => {
+    clearInterval(timerRef.current)
+    timerRef.current = null
+  }, [])
+
+  const disposeCapture = useCallback(() => {
+    revisionRef.current++
+    captureRef.current?.cancel()
+    captureRef.current = null
+    clearTimer()
+    stopLiveViz()
+    recBlobRef.current = null
+    pendingQuestionRef.current = null
+    submittingRef.current = false
+  }, [clearTimer, stopLiveViz])
+
+  const resetPractice = useCallback(() => {
+    disposeCapture()
+    setCountdown(0)
+    setResult(null)
+    setError(null)
+    setPhase('idle')
+  }, [disposeCapture])
+
+  useEffect(() => {
+    resetPractice()
+    return disposeCapture
+  }, [questionType, language, difficulty, topic, resetPractice, disposeCapture])
 
   const drawLive = useCallback(() => {
     animFrameRef.current = requestAnimationFrame(drawLive)
@@ -43,161 +73,150 @@ export function useOralPractice({ questionType, language, difficulty, topic } = 
     const data = new Uint8Array(analyser.fftSize)
     analyser.getByteTimeDomainData(data)
     const ctx = canvas.getContext('2d')
+    if (!ctx) return
     const { width: w, height: h } = canvas
     ctx.clearRect(0, 0, w, h)
-    const barW = 2, gap = 1, step = barW + gap
-    const numBars = Math.floor(w / step)
-    const bucketSize = Math.floor(data.length / numBars)
+    const step = 3
+    const numBars = Math.max(1, Math.floor(w / step))
+    const bucketSize = Math.max(1, Math.floor(data.length / numBars))
     for (let i = 0; i < numBars; i++) {
       let sum = 0
-      for (let j = 0; j < bucketSize; j++) sum += Math.abs(data[i * bucketSize + j] - 128)
-      const avg = sum / bucketSize
-      const barH = Math.max(2, (avg / 128) * h * 2.5)
-      const x = i * step
-      const y = (h - barH) / 2
+      for (let j = 0; j < bucketSize; j++) sum += Math.abs((data[i * bucketSize + j] ?? 128) - 128)
+      const barH = Math.max(2, (sum / bucketSize / 128) * h * 2.5)
       ctx.fillStyle = '#f43f5e'
-      ctx.beginPath()
-      ctx.roundRect(x, y, barW, barH, 1)
-      ctx.fill()
+      ctx.fillRect(i * step, (h - barH) / 2, 2, barH)
     }
   }, [])
 
+  const startLiveViz = useCallback(stream => {
+    const AudioCtx = globalThis.AudioContext || globalThis.webkitAudioContext
+    if (!AudioCtx) return
+    let audioCtx
+    try {
+      audioCtx = new AudioCtx()
+      const source = audioCtx.createMediaStreamSource(stream)
+      const analyser = audioCtx.createAnalyser()
+      analyser.fftSize = 256
+      source.connect(analyser)
+      analyserRef.current = { analyser, audioCtx }
+      drawLive()
+      return stopLiveViz
+    } catch {
+      audioCtx?.close().catch(() => {})
+    }
+  }, [drawLive, stopLiveViz])
+
   const generateQuestion = useCallback(async () => {
+    disposeCapture()
+    const operation = revisionRef.current
     setPhase('generating')
     setResult(null)
     setError(null)
     try {
       const res = await oralApi.generateQuestion({ questionType, language, difficulty, topic })
+      if (operation !== revisionRef.current) return
       const q = res.data
       llmPromptRef.current = q.prompt ?? ''
-      // For read_aloud the editable part is reference_text; for others it's the prompt
       setEditableText(questionType === 'read_aloud' ? (q.reference_text ?? '') : (q.prompt ?? ''))
-      setPhase('idle')
     } catch (e) {
-      setError(e?.response?.data?.detail || 'Failed to generate question')
-      setPhase('idle')
+      if (operation !== revisionRef.current) return
+      setError(e?.response?.data?.detail || tRef.current('recording.generateFailed', { defaultValue: '生成题目失败，请重试。' }))
     }
-  }, [questionType, language, difficulty, topic])
+    if (operation === revisionRef.current) setPhase('idle')
+  }, [questionType, language, difficulty, topic, disposeCapture])
 
-  const resetPractice = useCallback(() => {
-    setResult(null)
-    setError(null)
-    setPhase('idle')
-  }, [])
-
-  const cancelRecording = useCallback(() => {
-    recBlobRef.current = null
-    recChunksRef.current = []
-    pendingQuestionRef.current = null
-    setPhase('idle')
-  }, [])
+  const cancelRecording = resetPractice
 
   const startRecording = useCallback(async () => {
     const text = editableText.trim()
-    if (!text) return
-
+    if (!text || captureRef.current || submittingRef.current) return
+    disposeCapture()
+    const operation = revisionRef.current
+    const isCurrent = () => operation === revisionRef.current
     const isReadAloud = questionType === 'read_aloud'
-    pendingQuestionRef.current = isReadAloud
-      ? { prompt: llmPromptRef.current || 'Read the following text aloud:', reference_text: text }
-      : { prompt: text, reference_text: null }
-
-    recChunksRef.current = []
-    recBlobRef.current = null
-    setError(null)
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      recStreamRef.current = stream
-
-      const audioCtx = new AudioContext()
-      const src = audioCtx.createMediaStreamSource(stream)
-      const analyser = audioCtx.createAnalyser()
-      analyser.fftSize = 256
-      src.connect(analyser)
-      analyserRef.current = { analyser, audioCtx }
-      drawLive()
-
-      const mr = new MediaRecorder(stream)
-      mediaRecorderRef.current = mr
-      mr.ondataavailable = e => { if (e.data.size > 0) recChunksRef.current.push(e.data) }
-      mr.onstop = () => {
-        recBlobRef.current = new Blob(recChunksRef.current, { type: 'audio/webm' })
-        cancelAnimationFrame(animFrameRef.current)
-        analyserRef.current?.audioCtx.close()
-        analyserRef.current = null
-        recStreamRef.current?.getTracks().forEach(t => t.stop())
-        recStreamRef.current = null
-        setPhase('recorded')
-      }
-      mr.start()
-      setPhase('recording')
-
-      if (timerEnabled && timerSecs > 0) {
-        setCountdown(timerSecs)
-        let remaining = timerSecs
-        timerRef.current = setInterval(() => {
-          remaining -= 1
-          setCountdown(remaining)
-          if (remaining <= 0) {
-            clearInterval(timerRef.current)
-            mr.stop()
-          }
-        }, 1000)
-      }
-
-      stopRecordingRef.current = () => {
-        clearInterval(timerRef.current)
-        if (mr.state !== 'inactive') mr.stop()
-      }
-    } catch (e) {
-      setError('Microphone access denied')
-      setPhase('idle')
+    pendingQuestionRef.current = {
+      questionType, questionLanguage: language, questionDifficulty: difficulty,
+      questionPrompt: isReadAloud ? (llmPromptRef.current || 'Read the following text aloud:') : text,
+      questionReference: isReadAloud ? text : null,
+      timerSecs: timerEnabled ? timerSecs : null,
     }
-  }, [editableText, questionType, timerEnabled, timerSecs, drawLive])
+    setResult(null)
+    setError(null)
+    setCountdown(0)
+    setPhase('requesting')
+    const capture = createRecordingSession({
+      onStream: startLiveViz,
+      onStart: () => {
+        if (!isCurrent()) return
+        setPhase('recording')
+        if (timerEnabled && timerSecs > 0) {
+          const deadline = Date.now() + timerSecs * 1000
+          setCountdown(timerSecs)
+          timerRef.current = setInterval(() => {
+            if (!isCurrent()) return
+            const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
+            setCountdown(remaining)
+            if (remaining <= 0) { clearTimer(); capture.stop() }
+          }, 250)
+        }
+      },
+      onInterrupt: reason => {
+        if (isCurrent()) {
+          clearTimer()
+          setError(recordingInterruptionMessage(reason, tRef.current))
+        }
+      },
+      onComplete: blob => {
+        if (!isCurrent()) return
+        clearTimer()
+        captureRef.current = null
+        recBlobRef.current = blob
+        setPhase('recorded')
+      },
+      onError: failure => {
+        if (!isCurrent()) return
+        clearTimer()
+        captureRef.current = null
+        setError(recordingErrorMessage(failure, tRef.current))
+        setPhase('idle')
+      },
+    })
+    captureRef.current = capture
+    await capture.start()
+  }, [editableText, questionType, language, difficulty, timerEnabled, timerSecs, startLiveViz, disposeCapture, clearTimer])
 
   const stopRecording = useCallback(() => {
-    stopRecordingRef.current?.()
-  }, [])
+    clearTimer()
+    captureRef.current?.stop()
+  }, [clearTimer])
 
   const submitRecording = useCallback(async () => {
     const q = pendingQuestionRef.current
-    if (!recBlobRef.current || !q) return
+    const blob = recBlobRef.current
+    if (!blob || !q || submittingRef.current) return
+    const operation = revisionRef.current
+    submittingRef.current = true
     setPhase('submitting')
+    setError(null)
     try {
-      const res = await oralApi.submitAttempt({
-        questionType,
-        questionLanguage: language,
-        questionPrompt: q.prompt,
-        questionDifficulty: difficulty,
-        questionReference: q.reference_text,
-        timerSecs: timerEnabled ? timerSecs : null,
-        blob: recBlobRef.current,
-      })
+      const res = await oralApi.submitAttempt({ ...q, blob })
+      if (operation !== revisionRef.current) return
       setResult(res.data)
       setPhase('scored')
     } catch (e) {
-      setError(e?.response?.data?.detail || 'Scoring failed')
-      setPhase('idle')
+      if (operation !== revisionRef.current) return
+      setError(e?.response?.data?.detail || tRef.current('recording.submitFailed', {
+        defaultValue: '提交评分失败，录音仍保留在当前页面，请联网后重试。',
+      }))
+      setPhase('recorded')
+    } finally {
+      if (operation === revisionRef.current) submittingRef.current = false
     }
-  }, [questionType, language, difficulty, timerEnabled, timerSecs])
+  }, [])
 
   return {
-    phase,
-    editableText,
-    setEditableText,
-    result,
-    error,
-    timerEnabled,
-    setTimerEnabled,
-    timerSecs,
-    setTimerSecs,
-    countdown,
-    liveCanvasRef,
-    generateQuestion,
-    resetPractice,
-    startRecording,
-    stopRecording,
-    submitRecording,
-    cancelRecording,
+    phase, editableText, setEditableText, result, error,
+    timerEnabled, setTimerEnabled, timerSecs, setTimerSecs, countdown, liveCanvasRef,
+    generateQuestion, resetPractice, startRecording, stopRecording, submitRecording, cancelRecording,
   }
 }

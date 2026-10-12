@@ -59,24 +59,26 @@ export default function SentenceList({ audioFileId, onSelect, onTitleLoad, selec
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {/* Toolbar */}
-      <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-border/20 bg-background shrink-0">
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5 px-2 py-1.5 border-b border-border/20 bg-background shrink-0">
         {/* Search */}
-        <div className="relative flex-1 min-w-0">
+        <div className="relative min-w-20 flex-1">
           <Search className="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground/40" />
           <input
             type="text"
             value={searchText}
             onChange={e => setSearchText(e.target.value)}
             placeholder={t('practice.searchSentences')}
-            className="w-full rounded-md bg-muted/40 py-1 pl-5 pr-5 text-[11px] outline-none placeholder:text-muted-foreground/40 focus:ring-1 focus:ring-border"
+            aria-label={t('practice.searchSentences')}
+            className="w-full rounded-md bg-muted/40 py-1 pl-5 pr-11 text-[11px] md:pr-5 outline-none placeholder:text-muted-foreground/40 focus:ring-1 focus:ring-border"
           />
           {searchText && (
             <button
               type="button"
               onClick={() => setSearchText('')}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-muted-foreground"
+              aria-label="清除句子搜索"
+              className="absolute right-0 top-1/2 inline-flex -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground/40 hover:text-muted-foreground md:right-1.5"
             >
               <X className="size-3" />
             </button>
@@ -87,6 +89,8 @@ export default function SentenceList({ audioFileId, onSelect, onTitleLoad, selec
           type="button"
           onClick={() => setHideMastered(v => !v)}
           title={t('practice.hideMastered')}
+          aria-label={t('practice.hideMastered')}
+          aria-pressed={hideMastered}
           className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
             hideMastered
               ? 'border-emerald-400 text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30'
@@ -101,6 +105,8 @@ export default function SentenceList({ audioFileId, onSelect, onTitleLoad, selec
           type="button"
           onClick={() => setOnlyBookmarked(v => !v)}
           title={t('practice.onlyBookmarked')}
+          aria-label={t('practice.onlyBookmarked')}
+          aria-pressed={onlyBookmarked}
           className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
             onlyBookmarked
               ? 'border-amber-400 text-amber-500 bg-amber-50 dark:bg-amber-950/30'
@@ -139,7 +145,8 @@ export default function SentenceList({ audioFileId, onSelect, onTitleLoad, selec
                     role="button"
                     tabIndex={0}
                     onClick={() => onSelect(sentence)}
-                    onKeyDown={e => e.key === 'Enter' && onSelect(sentence)}
+                    aria-current={active ? 'true' : undefined}
+                    onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelect(sentence) } }}
                     className={[
                       'group flex w-full gap-2.5 px-3 py-2.5 text-left transition-colors border-b border-border/20 cursor-pointer',
                       active
@@ -159,7 +166,9 @@ export default function SentenceList({ audioFileId, onSelect, onTitleLoad, selec
                           <button
                             type="button"
                             onClick={e => toggleMastered(e, sentence)}
-                            className={`transition-colors ${mastered ? 'text-emerald-500' : 'text-transparent group-hover:text-muted-foreground/30'}`}
+                            aria-label={mastered ? '取消已掌握' : '标记为已掌握'}
+                            aria-pressed={!!mastered}
+                            className={`inline-flex items-center justify-center rounded-md transition-colors ${mastered ? 'text-emerald-500' : 'text-muted-foreground/40 md:text-transparent md:group-hover:text-muted-foreground/30 md:group-focus-within:text-muted-foreground/30'}`}
                           >
                             <CheckCircle2 className="size-3" />
                           </button>
@@ -167,7 +176,9 @@ export default function SentenceList({ audioFileId, onSelect, onTitleLoad, selec
                           <button
                             type="button"
                             onClick={e => toggleBookmark(e, sentence)}
-                            className={`transition-colors ${bookmarked ? 'text-amber-400' : 'text-transparent group-hover:text-muted-foreground/30'}`}
+                            aria-label={bookmarked ? '取消收藏句子' : '收藏句子'}
+                            aria-pressed={!!bookmarked}
+                            className={`inline-flex items-center justify-center rounded-md transition-colors ${bookmarked ? 'text-amber-400' : 'text-muted-foreground/40 md:text-transparent md:group-hover:text-muted-foreground/30 md:group-focus-within:text-muted-foreground/30'}`}
                           >
                             <Star className="size-3" fill={bookmarked ? 'currentColor' : 'none'} />
                           </button>

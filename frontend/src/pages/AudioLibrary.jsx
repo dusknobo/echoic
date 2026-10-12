@@ -171,7 +171,7 @@ export default function AudioLibrary() {
     .filter(f => activeCollection === null ? true : f.collection_id === activeCollection)
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full min-h-0 min-w-0 flex-col">
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2 px-4 md:px-6 py-3 border-b">
@@ -192,24 +192,24 @@ export default function AudioLibrary() {
         </div>
 
         {/* Search */}
-        <div className="relative flex-1 md:flex-none">
+        <div className="relative min-w-0 flex-1 md:flex-none">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
             placeholder={t('library.search')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && applySearch()}
-            className="pl-8 h-8 text-sm w-full md:w-[160px]"
+            className="pl-8 h-11 md:h-8 text-sm w-full md:w-[160px]"
           />
         </div>
 
-        <Button variant="default" size="sm" className="h-8 px-3 text-sm" onClick={applySearch}>
+        <Button variant="default" size="sm" className="h-11 w-11 px-3 text-sm md:h-8 md:w-auto" aria-label={t('library.search')} onClick={applySearch}>
           <Search className="w-3.5 h-3.5 md:mr-1" />
           <span className="hidden md:inline">{t('library.search')}</span>
         </Button>
 
         {appliedSearch && (
-          <Button variant="outline" size="sm" className="h-8 px-3 text-sm" onClick={resetSearch}>
+          <Button variant="outline" size="sm" className="h-11 w-11 px-3 text-sm md:h-8 md:w-auto" aria-label={t('library.reset')} onClick={resetSearch}>
             <RotateCcw className="w-3.5 h-3.5 md:mr-1" />
             <span className="hidden md:inline">{t('library.reset')}</span>
           </Button>
@@ -217,7 +217,7 @@ export default function AudioLibrary() {
 
         <div className="hidden md:block flex-1" />
 
-        <Button size="sm" className="h-8 md:h-9 md:px-4" onClick={() => setShowUpload(v => !v)}>
+        <Button size="sm" className="h-11 w-11 md:h-9 md:w-auto md:px-4" aria-label={t('library.addResource')} onClick={() => setShowUpload(v => !v)}>
           <Plus className="w-4 h-4 md:mr-1.5" />
           <span className="hidden md:inline">{t('library.addResource')}</span>
         </Button>
@@ -250,16 +250,18 @@ export default function AudioLibrary() {
           >
             <span>{col.name}</span>
             <div
-              className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="flex items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity"
               onClick={e => e.stopPropagation()}
             >
               <button
+                aria-label={t('library.renameCollection') + ': ' + col.name}
                 onClick={() => { setEditCol(col); setEditColName(col.name) }}
                 className={`p-0.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10`}
               >
                 <Pencil className="w-3 h-3" />
               </button>
               <button
+                aria-label={t('library.delete') + ': ' + col.name}
                 onClick={() => setDeleteCol(col)}
                 className={`p-0.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 ${activeCollection === col.id ? 'text-primary-foreground/70' : 'text-destructive'}`}
               >
@@ -297,7 +299,7 @@ export default function AudioLibrary() {
 
       {/* Dialogs */}
       <Dialog open={showUpload} onOpenChange={setShowUpload}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{t('library.addAudio')}</DialogTitle>
           </DialogHeader>
@@ -306,7 +308,7 @@ export default function AudioLibrary() {
       </Dialog>
 
       <Dialog open={!!editFile} onOpenChange={open => { if (!open) setEditFile(null) }}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>{t('library.editResource')}</DialogTitle>
           </DialogHeader>
@@ -359,7 +361,7 @@ export default function AudioLibrary() {
       </AlertDialog>
 
       <Dialog open={!!editCol} onOpenChange={open => { if (!open) setEditCol(null) }}>
-        <DialogContent className="sm:max-w-xs">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xs">
           <DialogHeader><DialogTitle>{t('library.renameCollection')}</DialogTitle></DialogHeader>
           <Input autoFocus value={editColName} onChange={e => setEditColName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && commitRenameCol()} />
@@ -384,7 +386,7 @@ export default function AudioLibrary() {
       </AlertDialog>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto px-4 md:px-6 py-4">
+      <div className="min-h-0 min-w-0 flex-1 overflow-auto px-4 md:px-6 py-4">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
             <p className="text-sm">
@@ -438,10 +440,10 @@ export default function AudioLibrary() {
                           <Button variant="outline" size="sm" className="mr-1" onClick={() => navigate(`/listening/${f.id}`)} title="连续盲听 · 空格打时间标记">
                             <Headphones className="w-3.5 h-3.5" /> 盲听
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={e => openEdit(e, f)}>
+                          <Button variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7" aria-label={t('library.editResource') + ': ' + f.title} onClick={e => openEdit(e, f)}>
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={e => { e.stopPropagation(); setDeleteFile(f) }}>
+                          <Button variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7 text-destructive hover:text-destructive" aria-label={t('library.delete') + ': ' + f.title} onClick={e => { e.stopPropagation(); setDeleteFile(f) }}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </div>
@@ -456,23 +458,23 @@ export default function AudioLibrary() {
               {filtered.map(f => (
                 <div
                   key={f.id}
-                  className="flex items-center gap-3 rounded-lg border border-border/40 p-3 cursor-pointer hover:bg-muted/30 transition-colors"
+                  className="flex flex-col items-stretch gap-2 rounded-lg border border-border/40 p-3 cursor-pointer hover:bg-muted/30 transition-colors"
                   onClick={() => navigate(`/speaking/${f.id}`)}
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">{f.title}</p>
+                    <p className="text-sm font-medium break-words">{f.title}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {normLang(f.language)} · {formatDuration(f.duration)} · {f.practice_count ?? 0} {t('library.practiceCount')}
                     </p>
                   </div>
-                  <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
+                  <div className="flex flex-wrap items-center justify-end gap-1 shrink-0" onClick={e => e.stopPropagation()}>
                     <Button variant="outline" size="sm" className="mr-1" onClick={() => navigate(`/listening/${f.id}`)} title="连续盲听 · 空格打时间标记">
                       <Headphones className="w-3.5 h-3.5" /> 盲听
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={e => openEdit(e, f)}>
+                    <Button variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7" aria-label={t('library.editResource') + ': ' + f.title} onClick={e => openEdit(e, f)}>
                       <Pencil className="w-3.5 h-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={e => { e.stopPropagation(); setDeleteFile(f) }}>
+                    <Button variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7 text-destructive hover:text-destructive" aria-label={t('library.delete') + ': ' + f.title} onClick={e => { e.stopPropagation(); setDeleteFile(f) }}>
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   </div>
@@ -481,7 +483,7 @@ export default function AudioLibrary() {
             </div>
           </>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(180px,100%),1fr))] gap-4">
             {filtered.map(f => (
               <div
                 key={f.id}

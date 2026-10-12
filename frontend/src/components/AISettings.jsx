@@ -177,19 +177,19 @@ export default function AISettings() {
   }
 
   return (
-    <section className="mb-8" aria-labelledby="ai-settings-heading">
+    <section className="mb-8 min-w-0" aria-labelledby="ai-settings-heading">
       <h2 id="ai-settings-heading" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">AI 分析</h2>
       {loading ? (
         <div className="rounded-lg border border-border/60 p-4 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />加载 AI 设置…</div>
       ) : !settings ? (
         <div className="rounded-lg border border-border/60 p-4 space-y-3">
-          <p role="alert" className="text-sm text-destructive">{error}</p>
+          <p role="alert" className="break-words text-sm text-destructive">{error}</p>
           <Button type="button" variant="outline" onClick={() => setReload(value => value + 1)}>重试</Button>
         </div>
       ) : (
-        <div className="rounded-lg border border-border/60 p-4 space-y-5">
-          <div className="flex items-center justify-between gap-4">
-            <div>
+        <div className="min-w-0 rounded-lg border border-border/60 p-3 sm:p-4 space-y-5">
+          <div className="flex items-start justify-between gap-3 sm:items-center sm:gap-4">
+            <div className="min-w-0">
               <Label id="ai-enabled-label" htmlFor="ai-enabled">启用 AI 分析</Label>
               <p className="text-xs text-muted-foreground mt-1">录音后手动发起分析，不会自动上传录音。</p>
             </div>
@@ -201,13 +201,13 @@ export default function AISettings() {
           </div>
           <div className="space-y-1.5 min-w-0">
             <Label htmlFor="ai-analysis_provider">默认分析服务</Label>
-            <select id="ai-analysis_provider" value={settings.analysis_provider} onChange={event => { update({ analysis_provider: event.target.value }); setExpanded(prev => ({ ...prev, [event.target.value]: true })) }} disabled={saving || Boolean(checking)} className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm">
+            <select id="ai-analysis_provider" value={settings.analysis_provider} onChange={event => { update({ analysis_provider: event.target.value }); setExpanded(prev => ({ ...prev, [event.target.value]: true })) }} disabled={saving || Boolean(checking)} className="h-11 sm:h-9 w-full min-w-0 rounded-md border border-input bg-background px-2 text-sm">
               {PROVIDERS.map(provider => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
             </select>
             <p className="text-xs text-muted-foreground leading-relaxed">在“我的练习”点击“AI 分析”时使用此服务，分析结果会随录音保存。</p>
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">专用评测服务提供细分评分；音频大模型的发音分数与连读判断仅供练习参考。模型名称需填写支持音频输入的型号。</p>
-          <div className="divide-y divide-border/50 rounded-md border border-border/60">
+          <div className="min-w-0 divide-y divide-border/50 rounded-md border border-border/60">
             {PROVIDERS.map(provider => {
               const config = settings.providers[provider.id]
               const configured = isConfigured(provider, savedSettings.providers[provider.id])
@@ -215,12 +215,12 @@ export default function AISettings() {
               return (
                 <div key={provider.id} data-ai-provider={provider.id}>
                   <button type="button" aria-expanded={Boolean(expanded[provider.id])} aria-controls={'ai-provider-' + provider.id} onClick={() => setExpanded(prev => ({ ...prev, [provider.id]: !prev[provider.id] }))} className="w-full flex items-center gap-2 p-3 text-left hover:bg-muted/30 rounded-md">
-                    <span className="text-sm font-medium flex-1 min-w-0">{provider.name}</span>
+                    <span className="text-sm font-medium flex-1 min-w-0 break-words">{provider.name}</span>
                     <span className={'text-[11px] shrink-0 ' + (changed ? 'text-amber-600 dark:text-amber-400' : configured ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground')}>{changed ? '未保存' : configured ? '已配置' : '未配置'}</span>
                     <ChevronDown className={'size-4 shrink-0 text-muted-foreground transition-transform ' + (expanded[provider.id] ? 'rotate-180' : '')} />
                   </button>
                   {expanded[provider.id] && (
-                    <div id={'ai-provider-' + provider.id} className="px-3 pb-4 space-y-3">
+                    <div id={'ai-provider-' + provider.id} className="min-w-0 px-3 pb-4 space-y-3">
                       <p className="text-xs text-muted-foreground leading-relaxed">{provider.description}</p>
                       <a href={provider.docs} target="_blank" rel="noopener noreferrer" className="inline-flex gap-1 items-center text-xs text-primary hover:underline">官方接口文档<ExternalLink className="size-3" /></a>
                       {provider.fields.map(field => {
@@ -230,10 +230,10 @@ export default function AISettings() {
                         const id = 'ai-' + provider.id + '-' + field
                         return (
                           <div key={field} className="space-y-1.5">
-                            <Label htmlFor={id}>{FIELD_LABELS[field]}{provider.id === 'azure' && field === 'region' && <span className="text-muted-foreground text-xs ml-1">与接口地址至少填一项</span>}{provider.required.includes(field) && <span className="text-muted-foreground text-xs ml-1">必填</span>}</Label>
-                            <div className="flex gap-2 items-center">
-                              <Input id={id} type={secret ? 'password' : 'text'} autoComplete={secret ? 'new-password' : 'off'} spellCheck={false} value={secret ? secretDrafts[provider.id]?.[field] || '' : config[field]} onChange={event => updateField(provider.id, field, event.target.value)} disabled={saving || Boolean(checking)} placeholder={secret ? (clearing ? '保存后清除密钥' : hasSecret ? '已保存；留空保持不变' : '输入密钥') : field === 'endpoint' ? '使用默认地址或填写完整接口地址' : field === 'region' ? '例如 eastasia' : field === 'language' ? '例如 en-US' : field === 'model' ? '支持音频输入的模型名称' : ''} className="min-w-0 text-sm" />
-                              {secret && hasSecret && <Button type="button" variant={clearing ? 'secondary' : 'outline'} size="sm" onClick={() => toggleClear(provider.id, field)} disabled={saving || Boolean(checking)}>{clearing ? '撤销清除' : '清除'}</Button>}
+                            <Label htmlFor={id} className="flex flex-wrap gap-x-1 gap-y-0.5">{FIELD_LABELS[field]}{provider.id === 'azure' && field === 'region' && <span className="text-muted-foreground text-xs ml-1">与接口地址至少填一项</span>}{provider.required.includes(field) && <span className="text-muted-foreground text-xs ml-1">必填</span>}</Label>
+                            <div className="flex gap-2 items-center min-w-0">
+                              <Input id={id} type={secret ? 'password' : 'text'} autoComplete={secret ? 'new-password' : 'off'} spellCheck={false} value={secret ? secretDrafts[provider.id]?.[field] || '' : config[field]} onChange={event => updateField(provider.id, field, event.target.value)} disabled={saving || Boolean(checking)} placeholder={secret ? (clearing ? '保存后清除密钥' : hasSecret ? '已保存；留空保持不变' : '输入密钥') : field === 'endpoint' ? '使用默认地址或填写完整接口地址' : field === 'region' ? '例如 eastasia' : field === 'language' ? '例如 en-US' : field === 'model' ? '支持音频输入的模型名称' : ''} className="min-w-0 flex-1 text-sm" />
+                              {secret && hasSecret && <Button type="button" variant={clearing ? 'secondary' : 'outline'} size="sm" className="shrink-0" onClick={() => toggleClear(provider.id, field)} disabled={saving || Boolean(checking)}>{clearing ? '撤销清除' : '清除'}</Button>}
                             </div>
                             {secret && <p className="text-[11px] text-muted-foreground">{clearing ? '密钥将在保存设置后清除。' : hasSecret ? '已有密钥。填写新值可替换；留空保留原值。' : provider.id === 'local' ? '可选，仅在本地服务启用鉴权时填写。' : '保存后不会再显示密钥内容。'}</p>}
                           </div>
@@ -259,7 +259,7 @@ export default function AISettings() {
             {dirty && <span className="text-xs text-muted-foreground">有未保存的更改</span>}
             {notice && <p role="status" className="text-xs text-emerald-600 dark:text-emerald-400">{notice}</p>}
           </div>
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          {error && <p role="alert" className="break-words text-sm text-destructive">{error}</p>}
         </div>
       )}
     </section>

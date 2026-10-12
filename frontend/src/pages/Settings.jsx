@@ -26,12 +26,12 @@ function langLabel(value) {
 
 function SettingRow({ label, desc, children }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-3">
+    <div className="flex flex-col items-start justify-between gap-3 py-3 sm:flex-row sm:items-center sm:gap-4">
       <div className="min-w-0">
         <p className="text-sm font-medium">{label}</p>
         {desc && <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>}
       </div>
-      <div className="shrink-0">{children}</div>
+      <div className="max-w-full shrink-0">{children}</div>
     </div>
   )
 }
@@ -41,20 +41,20 @@ export default function Settings() {
   const { settings, update } = useSettings()
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-auto pt-6 px-6 pb-6 max-w-xl">
+    <div className="flex h-full min-h-0 min-w-0 flex-col">
+      <div className="min-h-0 min-w-0 flex-1 overflow-auto px-4 py-5 sm:px-6 sm:py-6 max-w-xl w-full">
 
       {/* Appearance */}
       <section className="mb-8">
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t('settings.appearance')}</h2>
         <div className="rounded-lg border border-border/60 px-4">
           <SettingRow label={t('settings.theme')}>
-            <div className="flex rounded-lg border border-border/60 overflow-hidden">
+            <div className="flex max-w-full rounded-lg border border-border/60 overflow-hidden">
               {THEMES.map(({ value, key, icon: Icon }) => (
                 <button
                   key={value}
                   onClick={() => update({ theme: value })}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs transition-colors ${
+                  className={`flex items-center justify-center gap-1.5 px-2 py-2 text-xs transition-colors sm:px-3 sm:py-1.5 ${
                     settings.theme === value
                       ? 'bg-accent text-accent-foreground'
                       : 'text-muted-foreground hover:bg-muted/50'
@@ -114,7 +114,7 @@ export default function Settings() {
             { keys: ['←', '→'],        label: t('settings.shortcut.navigate') },
             { keys: ['Esc'],           label: t('settings.shortcut.cancel') },
           ].map(({ keys, label }) => (
-            <div key={label} className="flex items-center justify-between py-2.5">
+            <div key={label} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
               <span className="text-sm font-medium">{label}</span>
               <div className="flex items-center gap-1">
                 {keys.map(k => (

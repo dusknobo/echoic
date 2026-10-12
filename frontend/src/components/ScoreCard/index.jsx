@@ -30,7 +30,7 @@ function PhonemeBar({ expected, scores }) {
   const chars = [...expected] // split by Unicode code point
 
   return (
-    <span className="font-[family-name:var(--font-ipa)] text-xs tracking-wide">
+    <span className="max-w-full break-all font-[family-name:var(--font-ipa)] text-xs tracking-wide">
       {chars.map((ch, i) => {
         if (STRESS.has(ch)) {
           return <span key={i} className="text-muted-foreground/50">{ch}</span>
@@ -81,8 +81,8 @@ export default function ScoreCard({ result }) {
       {words.length > 0 && (
         <div className="flex flex-wrap gap-3 pt-2 border-t">
           {words.map((ws, i) => (
-            <div key={i} className="flex flex-col items-center gap-1">
-              <span className={`rounded-md px-2 py-1 text-sm font-medium ${chipBg(ws.accuracy_score)}`}>
+            <div key={i} className="flex max-w-full flex-col items-center gap-1">
+              <span className={`max-w-full break-words rounded-md px-2 py-1 text-sm font-medium ${chipBg(ws.accuracy_score)}`}>
                 {ws.word}
               </span>
               <PhonemeBar

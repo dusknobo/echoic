@@ -33,8 +33,8 @@ export default function OralHome() {
   }, [])
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-auto px-4 pt-6 pb-4 flex flex-col gap-6 max-w-2xl mx-auto w-full">
+    <div className="flex h-full min-h-0 min-w-0 flex-col">
+      <div className="min-h-0 min-w-0 flex-1 overflow-auto px-4 pt-5 pb-4 sm:pt-6 flex flex-col gap-6 max-w-2xl mx-auto w-full">
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {QUESTION_TYPES.map(({ key, icon: Icon, color, bg }) => (
@@ -69,11 +69,11 @@ export default function OralHome() {
                 const Icon = typeInfo?.icon ?? Mic2
                 const color = typeInfo?.color ?? 'text-muted-foreground'
                 return (
-                  <div key={a.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
+                  <div key={a.id} className="flex flex-wrap items-center gap-3 px-3 py-3 sm:px-4 hover:bg-muted/30 transition-colors">
                     <Icon className={`w-4 h-4 shrink-0 ${color}`} />
                     <div className="flex-1 min-w-0">
                       <div className="truncate text-sm text-foreground">{a.question_prompt}</div>
-                      <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-0.5 text-xs text-muted-foreground">
                         <span>{t(`oral.types.${a.question_type}.name`)}</span>
                         {a.question_difficulty && (
                           <><span>·</span><span>{t(`oral.difficulty.${a.question_difficulty}`)}</span></>
@@ -83,7 +83,7 @@ export default function OralHome() {
                         )}
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-0.5 shrink-0">
+                    <div className="flex w-full flex-row items-center justify-between gap-2 pl-7 shrink-0 sm:pl-0 sm:w-auto sm:flex-col sm:items-end sm:gap-0.5">
                       {score != null && (
                         <span className={`font-bold text-base tabular-nums leading-none ${scoreColor(score)}`}>
                           {Math.round(score)}
