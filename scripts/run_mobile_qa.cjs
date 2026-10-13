@@ -31,7 +31,7 @@ process.on('SIGTERM', () => { stop(); process.exit(143); });
         server.once('exit', () => fail(new Error('Preview exited before becoming ready')));
         server.stdout.on('data', chunk => {
           output += chunk.toString();
-          if (output.includes('Local:')) { clearTimeout(timer); resolve(); }
+          if (output.replace(/\x1b\[[0-9;]*m/g, '').includes('Local:')) { clearTimeout(timer); resolve(); }
         });
       });
       const deadline = Date.now() + 20000;

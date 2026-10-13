@@ -268,8 +268,9 @@ async function noHorizontalOverflow(page, label) {
     await page?.screenshot({ path: path.join(qa, 'failure.png'), fullPage: true }).catch(() => {});
     throw error;
   } finally {
-    await context?.tracing.stop({ path: path.join(qa, 'trace.zip') });
-    await browser?.close();
-    await state?.close();
+    try {
+      await context?.tracing.stop({ path: path.join(qa, 'trace.zip') }).catch(error => console.error('Trace save failed:', error));
+      await browser?.close();
+    } finally { await state?.close(); }
   }
 })().catch(error => { console.error(error); process.exitCode = 1; });
