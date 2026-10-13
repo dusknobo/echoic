@@ -8,25 +8,23 @@ async function installMP4Capture(context) {
     // Modern WebKit may prefer WebM. Restrict capability discovery, leaving the
     // constructor, encoding, dataavailable, pause/resume and stop native.
     Recorder.isTypeSupported = type => type.startsWith('audio/mp4') && supported(type);
+    window.qaAudioInputs = [];
     navigator.mediaDevices.getUserMedia = async () => {
       const audio = new AudioContext();
       const oscillator = audio.createOscillator();
       const destination = audio.createMediaStreamDestination();
       oscillator.frequency.value = 240;
       oscillator.connect(destination);
+      // Keep WebKit's render graph active even without a physical audio device.
+      const mute = audio.createGain(); mute.gain.value = 0;
+      oscillator.connect(mute); mute.connect(audio.destination);
       oscillator.start();
       await audio.resume();
-      const track = destination.stream.getAudioTracks()[0];
-      const stop = track.stop.bind(track);
-      let stopped = false;
-      track.stop = () => {
-        stop();
-        if (!stopped) {
-          stopped = true;
-          oscillator.stop();
-          void audio.close();
-        }
-      };
+      window.qaAudioInputs.push(audio);
+      // Hardware input does not disappear when visualization closes. Keep the
+      // synthetic source alive through the recorder's asynchronous final flush;
+      // track.stop itself remains native and is still asserted by the scenarios.
+      addEventListener('pagehide', () => { oscillator.stop(); void audio.close(); }, { once: true });
       return destination.stream;
     };
   });

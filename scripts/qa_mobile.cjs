@@ -149,7 +149,9 @@ async function noHorizontalOverflow(page, label) {
     const record = () => page.getByRole('button', { name: '点击开始录音', exact: true });
     await record().waitFor();
     state.failSave = true;
-    await record().click(); await page.waitForTimeout(1400);
+    await record().click();
+    await page.getByRole('button', { name: '完成录音', exact: true }).waitFor();
+    await page.waitForTimeout(mp4 ? 2500 : 1400);
     if (!await page.getByRole('button', { name: '完成录音', exact: true }).count()) {
       await page.screenshot({ path: path.join(qa, 'mobile-record-debug.png'), fullPage: true });
       console.log('Capture start state:', await page.locator('body').innerText(), errors, await page.evaluate(() => ({ streams: qaStreams.length, visibility: document.visibilityState, secure: isSecureContext })));
@@ -220,7 +222,7 @@ async function noHorizontalOverflow(page, label) {
       state.captureName = reason;
       await page.goto(base + '/speaking/' + audio.id + '?time=0'); await record().waitFor();
       await record().click(); await page.getByRole('button', { name: '完成录音', exact: true }).waitFor();
-      await page.waitForTimeout(1100);
+      await page.waitForTimeout(mp4 ? 2500 : 1100);
       await page.evaluate(reason => {
         if (reason === 'background') {
           Object.defineProperty(document, 'hidden', { value: true, configurable: true });
@@ -244,7 +246,9 @@ async function noHorizontalOverflow(page, label) {
     await page.goto(base + '/oral/read_aloud');
     await page.locator('textarea').fill(sentence.text);
     state.failOral = true;
-    await page.getByRole('button', { name: '开始录音', exact: true }).click(); await page.waitForTimeout(1200);
+    await page.getByRole('button', { name: '开始录音', exact: true }).click();
+    await page.getByRole('button', { name: '停止录音', exact: true }).waitFor();
+    await page.waitForTimeout(mp4 ? 2500 : 1200);
     await page.getByRole('button', { name: '停止录音', exact: true }).click();
     const submit = page.getByRole('button', { name: '提交评分', exact: true });
     await submit.click();
@@ -256,6 +260,11 @@ async function noHorizontalOverflow(page, label) {
     assert.deepEqual(errors, []);
     console.log(`PASS: ${engine} capture, byte-identical save/oral retry, playback comparisons, score failure/retry, saved-container history playback, late permission, simulated interruptions and denied mic guidance. API/model responses mocked; native encoder and playback. Captures: ${qa}`);
   } catch (error) {
+    console.error('Capture diagnostics:', await page?.evaluate(() => ({
+      inputs: window.qaAudioInputs?.map(audio => ({ state: audio.state, time: audio.currentTime })),
+      tracks: window.qaStreams?.flatMap(stream => stream.getTracks().map(track => ({ state: track.readyState, muted: track.muted }))),
+      alerts: [...document.querySelectorAll('[role="alert"]')].map(element => element.textContent),
+    })).catch(() => null));
     await page?.screenshot({ path: path.join(qa, 'failure.png'), fullPage: true }).catch(() => {});
     throw error;
   } finally {

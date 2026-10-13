@@ -18,13 +18,24 @@ process.on('SIGTERM', () => { stop(); process.exit(143); });
         throw new Error('Build the frontend first: npm --prefix frontend run build');
       }
       server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', '18767', '--strictPort'], {
-        cwd: path.join(root, 'frontend'), stdio: 'inherit',
+        cwd: path.join(root, 'frontend'), stdio: ['ignore', 'pipe', 'inherit'],
       });
-      let serverError;
-      server.on('error', error => { serverError = error; });
+      server.stdout.pipe(process.stdout);
+      // Observe our child's ready message before probing the port; an unrelated
+      // server on 18767 must not accidentally satisfy the readiness check.
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('Preview startup timed out')), 20000);
+        let output = '';
+        const fail = error => { clearTimeout(timer); reject(error); };
+        server.once('error', fail);
+        server.once('exit', () => fail(new Error('Preview exited before becoming ready')));
+        server.stdout.on('data', chunk => {
+          output += chunk.toString();
+          if (output.includes('Local:')) { clearTimeout(timer); resolve(); }
+        });
+      });
       const deadline = Date.now() + 20000;
       while (true) {
-        if (serverError) throw serverError;
         if (server.exitCode !== null) throw new Error('Preview exited before becoming ready');
         try { if ((await fetch(base, { signal: AbortSignal.timeout(1000) })).ok) break; } catch {}
         if (Date.now() >= deadline) throw new Error('Preview startup timed out');
