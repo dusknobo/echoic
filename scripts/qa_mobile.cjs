@@ -137,7 +137,7 @@ async function noHorizontalOverflow(page, label) {
         if (pathname.startsWith('/speaking/' + audio.id)) {
           // Layout navigation should not revoke a Blob while WebKit is still
           // decoding it; wait for the actual waveform, not an arbitrary delay.
-          await page.locator('button[aria-label="播放原音"]:not([data-trigger-disabled])').waitFor();
+          await page.locator('button[aria-label="播放原音"]:enabled:not([aria-disabled="true"]):not([data-trigger-disabled])').waitFor();
         }
         await noHorizontalOverflow(page, width + ' ' + pathname);
         if (width < 768) {
