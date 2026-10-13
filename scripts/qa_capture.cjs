@@ -21,6 +21,15 @@ async function installMP4Capture(context) {
       oscillator.start();
       await audio.resume();
       window.qaAudioInputs.push(audio);
+      const deadline = performance.now() + 5000;
+      while (audio.currentTime < 0.05) {
+        if (performance.now() > deadline) {
+          destination.stream.getTracks().forEach(track => track.stop());
+          oscillator.stop(); await audio.close();
+          throw new Error('Synthetic Web Audio clock did not advance; this runner has no working audio output');
+        }
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
       // Hardware input does not disappear when visualization closes. Keep the
       // synthetic source alive through the recorder's asynchronous final flush;
       // track.stop itself remains native and is still asserted by the scenarios.

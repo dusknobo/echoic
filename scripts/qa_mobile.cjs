@@ -115,8 +115,11 @@ async function noHorizontalOverflow(page, label) {
       };
       const original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
       navigator.mediaDevices.getUserMedia = async (...args) => {
+        const acquisition = original(...args).then(stream => ({ stream }), error => ({ error }));
         if (window.qaHoldPermission) await new Promise(resolve => { window.qaResolvePermission = resolve; });
-        const stream = await original(...args); window.qaStreams.push(stream); return stream;
+        const { stream, error } = await acquisition;
+        if (error) throw error;
+        window.qaStreams.push(stream); return stream;
       };
     });
     page = await context.newPage();
@@ -226,7 +229,7 @@ async function noHorizontalOverflow(page, label) {
     await page.waitForFunction(() => typeof window.qaResolvePermission === 'function');
     await page.locator('nav[aria-label="手机主导航"]').getByRole('link', { name: '设置', exact: true }).click();
     await page.evaluate(() => { window.qaHoldPermission = false; window.qaResolvePermission(); });
-    await page.waitForTimeout(300);
+    await page.waitForFunction(() => qaStreams.length > 0 && qaStreams.every(stream => stream.getTracks().every(track => track.readyState === 'ended')));
     assert(await page.evaluate(() => qaStreams.every(stream => stream.getTracks().every(track => track.readyState === 'ended'))), 'Late mic stream must be released');
     // Backgrounding and device loss retain playable partial audio, then release the mic.
     for (const reason of ['background', 'device-ended']) {
