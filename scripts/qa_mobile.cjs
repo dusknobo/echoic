@@ -137,7 +137,7 @@ async function noHorizontalOverflow(page, label) {
         if (pathname.startsWith('/speaking/' + audio.id)) {
           // Layout navigation should not revoke a Blob while WebKit is still
           // decoding it; wait for the actual waveform, not an arbitrary delay.
-          await page.waitForFunction(() => document.querySelector('button[aria-label="播放原音"]')?.disabled === false);
+          await page.locator('button[aria-label="播放原音"]:not([data-trigger-disabled])').waitFor();
         }
         await noHorizontalOverflow(page, width + ' ' + pathname);
         if (width < 768) {
@@ -218,7 +218,9 @@ async function noHorizontalOverflow(page, label) {
     await page.reload();
     await page.getByRole('tab', { name: '我的练习', exact: true }).click();
     await page.getByRole('button', { name: /我的练习.*2026/ }).tap();
-    await page.getByRole('button', { name: '播放录音', exact: true }).tap();
+    // Base UI TooltipTrigger exposes disabled as data-trigger-disabled, not
+    // native disabled; Playwright's normal actionability check is insufficient.
+    await page.locator('button[aria-label="播放录音"]:not([data-trigger-disabled])').tap();
     await page.waitForFunction(() => qaPlays.length === 1);
     await page.waitForFunction(() => qaPlaybackEvents.some(event => event.type === 'timeupdate' && event.time > 0 && !event.error));
     assert.deepEqual(state.streams, [state.records[0].id]);
@@ -249,7 +251,7 @@ async function noHorizontalOverflow(page, label) {
       await page.getByText('录音已保存', { exact: true }).waitFor();
       checkFormat(state.uploads.at(-1));
       assert(await page.evaluate(() => qaStreams.every(stream => stream.getTracks().every(track => track.readyState === 'ended'))));
-      await page.getByRole('button', { name: '播放录音', exact: true }).click();
+      await page.locator('button[aria-label="播放录音"]:not([data-trigger-disabled])').tap();
       await page.waitForFunction(() => qaMedia.some(audio => !audio.paused));
     }
     // Permission denial needs a recoverable, visible message.
