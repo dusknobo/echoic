@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
+import mimetypes
 
 import pytest
 
@@ -225,7 +226,16 @@ def _assert_media_stream(client, url, data):
     assert response.headers["content-range"] == f"bytes 0-31/{len(data)}"
 
 
+@pytest.fixture
+def misleading_m4a_mime(monkeypatch):
+    # Reproduce macOS/host MIME databases on every CI platform. MP4 containers
+    # must not inherit the distinct LATM transport type from an extension guess.
+    mimetypes.init()
+    monkeypatch.setitem(mimetypes.types_map, ".m4a", "audio/mp4a-latm")
+
+
 @pytest.mark.media
+@pytest.mark.usefixtures("misleading_m4a_mime")
 def test_mp4_save_stream_score_failure_and_retry(media_db, tmp_storage, monkeypatch, mp4_recording):
     db = media_db
     audio_file = _seed_audio_file(db)
@@ -266,6 +276,7 @@ def test_mp4_save_stream_score_failure_and_retry(media_db, tmp_storage, monkeypa
 
 
 @pytest.mark.media
+@pytest.mark.usefixtures("misleading_m4a_mime")
 def test_mp4_oral_upload_decode_score_and_stream(media_db, tmp_storage, monkeypatch, mp4_recording):
     db = media_db
     from app.services.factory import get_llm_service

@@ -106,6 +106,8 @@ DATABASE_URL=sqlite:///:memory: ECHOIC_QA_CAPTURE_DIR="$PWD/.runtime/qa/webkit" 
 
 轻量依赖版本取自 `backend/uv.lock`；更新后端锁文件时同步 `scripts/requirements-media-qa.txt`。已有完整后端环境可直接运行 pytest。测试使用临时 SQLite 和临时存储，不操作个人数据库，也不调用收费 AI 服务。
 
+这组回归在 macOS 上发现默认 MIME 数据库会把 `.m4a` 推断成 `audio/mp4a-latm`。跟读及口语的录音回放接口现明确返回 `audio/mp4`；测试也注入这个错误映射，确保 Linux CI 同样能捕获回归。
+
 `.github/workflows/mobile-recording.yml` 在 PR、main 推送及手动触发时执行前端单元测试、真实后端媒体测试，以及 Chromium/Linux 和 WebKit/macOS 两个浏览器任务。失败时保留截图和 Playwright trace；每次成功录音也保存测试音文件，供后端衔接验证。产物在 `.runtime/qa/<browser>/`，CI 保留 7 天；可用 `npx playwright show-trace <trace.zip>` 查看。原有其他专项 QA 脚本保留，未宣称全部纳入这个工作流。
 
 ### 发布前的真实手机验收（仍需人工完成）
