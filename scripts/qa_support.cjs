@@ -3,7 +3,7 @@ const path = require('node:path');
 
 // Install Playwright normally, or point ECHOIC_PLAYWRIGHT_MODULE at an existing
 // module. ECHOIC_BROWSER_PATH optionally chooses an installed browser executable.
-const { chromium } = require(process.env.ECHOIC_PLAYWRIGHT_MODULE || 'playwright');
+const { chromium, webkit } = require(process.env.ECHOIC_PLAYWRIGHT_MODULE || 'playwright');
 
 function isExecutableFile(candidate) {
   if (!candidate) return false;
@@ -30,6 +30,14 @@ function browserExecutablePath() {
 }
 
 async function launchBrowser(options = {}) {
+  const browser = process.env.ECHOIC_QA_BROWSER || 'chromium';
+  if (browser === 'webkit') {
+    if (process.env.ECHOIC_BROWSER_PATH || options.executablePath || options.args?.length) {
+      throw new Error('WebKit requires its Playwright build; Chromium/Edge paths and flags are not supported.');
+    }
+    return webkit.launch({ headless: true, ...options });
+  }
+  if (browser !== 'chromium') throw new Error('ECHOIC_QA_BROWSER must be chromium or webkit.');
   const executablePath = browserExecutablePath();
   // Without an installed Edge, omit executablePath so Playwright selects its
   // bundled Chromium (install it with: npx playwright install chromium).

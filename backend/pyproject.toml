@@ -53,5 +53,6 @@ testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "auto"
 markers = [
+    "media: real browser-container decode and API tests requiring ffmpeg and ffprobe (no ML models)",
     "slow: integration tests that load ML models (deselect with -m 'not slow')",
 ]

@@ -1,0 +1,11 @@
+{
+  "name": "echoic-qa",
+  "private": true,
+  "scripts": {
+    "test:mobile": "node scripts/run_mobile_qa.cjs chromium",
+    "test:mobile:webkit": "node scripts/run_mobile_qa.cjs webkit"
+  },
+  "devDependencies": {
+    "playwright": "1.58.2"
+  }
+}
