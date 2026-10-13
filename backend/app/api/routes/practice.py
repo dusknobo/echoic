@@ -207,7 +207,9 @@ async def stream_recording(record_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="record not found")
     storage = get_storage_service(record.storage_backend)
     path = storage.get_absolute_path(record.recording_path)
-    return FileResponse(path)
+    # Host MIME databases can label .m4a as LATM instead of its MP4 container.
+    media_type = "audio/mp4" if Path(path).suffix.lower() == ".m4a" else None
+    return FileResponse(path, media_type=media_type)
 
 
 @router.delete("/record/{record_id}", status_code=204)

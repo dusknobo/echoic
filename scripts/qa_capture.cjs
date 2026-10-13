@@ -1,0 +1,97 @@
+// Native WebKit encoder + synthetic input. This does NOT test OS microphone access.
+async function installMP4Capture(context) {
+  await context.addInitScript(() => {
+    const Recorder = window.MediaRecorder;
+    const supported = Recorder?.isTypeSupported?.bind(Recorder);
+    window.qaNativeMP4 = !!supported?.('audio/mp4');
+    if (!window.qaNativeMP4) return;
+    // Modern WebKit may prefer WebM. Restrict capability discovery, leaving the
+    // constructor, encoding, dataavailable, pause/resume and stop native.
+    Recorder.isTypeSupported = type => type.startsWith('audio/mp4') && supported(type);
+    window.qaAudioInputs = [];
+    navigator.mediaDevices.getUserMedia = async () => {
+      const audio = new AudioContext();
+      const oscillator = audio.createOscillator();
+      const destination = audio.createMediaStreamDestination();
+      oscillator.frequency.value = 240;
+      oscillator.connect(destination);
+      // Keep WebKit's render graph active even without a physical audio device.
+      const mute = audio.createGain(); mute.gain.value = 0;
+      oscillator.connect(mute); mute.connect(audio.destination);
+      oscillator.start();
+      await audio.resume();
+      window.qaAudioInputs.push(audio);
+      const deadline = performance.now() + 5000;
+      while (audio.currentTime < 0.05) {
+        if (performance.now() > deadline) {
+          destination.stream.getTracks().forEach(track => track.stop());
+          oscillator.stop(); await audio.close();
+          throw new Error('Synthetic Web Audio clock did not advance; this runner has no working audio output');
+        }
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+      // Hardware input does not disappear when visualization closes. Keep the
+      // synthetic source alive through the recorder's asynchronous final flush;
+      // track.stop itself remains native and is still asserted by the scenarios.
+      addEventListener('pagehide', () => { oscillator.stop(); void audio.close(); }, { once: true });
+      return destination.stream;
+    };
+  });
+}
+
+const http = require('node:http');
+const https = require('node:https');
+const isUpload = pathname => /\/save$/.test(pathname) || pathname === '/api/oral/attempts';
+
+// Read the actual HTTP body. WebKit's inspector can omit Blob bytes from
+// request.postDataBuffer(), so protocol interception is not an upload oracle.
+async function readUpload(request) {
+  const chunks = [];
+  for await (const chunk of request) chunks.push(chunk);
+  const form = await new Request('http://localhost' + request.url, {
+    method: 'POST', headers: { 'content-type': request.headers['content-type'] }, body: Buffer.concat(chunks),
+  }).formData();
+  const file = form.get('file');
+  if (!file || typeof file.arrayBuffer !== 'function') throw new Error('Missing multipart recording file');
+  return { filename: file.name, mime: file.type, bytes: Buffer.from(await file.arrayBuffer()) };
+}
+
+async function startUploadServer(frontendBase, handleUpload) {
+  const server = http.createServer(async (request, response) => {
+    const pathname = new URL(request.url, 'http://localhost').pathname;
+    if (request.method === 'GET' && pathname === '/api/oral/attempts') {
+      response.writeHead(200, { 'Content-Type': 'application/json' }); response.end('[]'); return;
+    }
+    if (request.method === 'POST' && isUpload(pathname)) {
+      try {
+        const result = await handleUpload(pathname, await readUpload(request));
+        response.writeHead(result.status || 200, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify(result.json));
+      } catch (error) {
+        console.error('Upload fixture failed:', error);
+        response.writeHead(500, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({ detail: 'Upload fixture failed' }));
+      }
+      return;
+    }
+    // Unknown API writes cannot escape to a user's backend.
+    if (pathname.startsWith('/api/')) { response.writeHead(404); response.end(); return; }
+    const target = new URL(request.url, frontendBase);
+    const upstream = (target.protocol === 'https:' ? https : http).request(target, { method: request.method }, incoming => {
+      response.writeHead(incoming.statusCode, incoming.headers);
+      incoming.pipe(response);
+    });
+    upstream.on('error', () => { response.writeHead(502); response.end(); });
+    request.pipe(upstream);
+  });
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  return {
+    base: `http://127.0.0.1:${server.address().port}`,
+    close: () => new Promise(resolve => { server.close(resolve); server.closeAllConnections(); }),
+  };
+}
+
+module.exports = { installMP4Capture, startUploadServer, isUpload };
