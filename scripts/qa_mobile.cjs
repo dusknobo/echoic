@@ -214,8 +214,9 @@ async function noHorizontalOverflow(page, label) {
     // Full reload drops the local Blob; history must decode the saved container.
     await page.reload();
     await page.getByRole('tab', { name: '我的练习', exact: true }).click();
-    await page.getByRole('button', { name: /我的练习.*2026/ }).click();
-    await page.getByRole('button', { name: '播放录音', exact: true }).click();
+    await page.getByRole('button', { name: /我的练习.*2026/ }).tap();
+    await page.getByRole('button', { name: '播放录音', exact: true }).tap();
+    await page.waitForFunction(() => qaPlays.length === 1);
     await page.waitForFunction(() => qaPlaybackEvents.some(event => event.type === 'timeupdate' && event.time > 0 && !event.error));
     assert.deepEqual(state.streams, [state.records[0].id]);
     // A pending permission response must not revive recording after navigation.
