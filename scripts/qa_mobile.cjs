@@ -101,10 +101,15 @@ async function noHorizontalOverflow(page, label) {
     if (mp4) await installMP4Capture(context);
     state = await fixtures(context);
     await context.addInitScript(() => {
-      window.qaStreams = []; window.qaMedia = []; window.qaPlays = [];
+      window.qaStreams = []; window.qaMedia = []; window.qaPlays = []; window.qaPlaybackEvents = [];
       const mediaPlay = HTMLMediaElement.prototype.play;
       HTMLMediaElement.prototype.play = function(...args) {
-        if (!qaMedia.includes(this)) qaMedia.push(this);
+        if (!qaMedia.includes(this)) {
+          qaMedia.push(this);
+          for (const type of ['playing', 'timeupdate', 'ended', 'error']) this.addEventListener(type, () => {
+            qaPlaybackEvents.push({ id: qaMedia.indexOf(this), type, time: this.currentTime, error: this.error?.code });
+          });
+        }
         qaPlays.push({ id: qaMedia.indexOf(this), at: performance.now() });
         return mediaPlay.apply(this, args);
       };
@@ -126,6 +131,11 @@ async function noHorizontalOverflow(page, label) {
       await page.setViewportSize({ width, height: width >= 768 ? 960 : 844 });
       for (const pathname of paths) {
         await page.goto(base + pathname); await page.waitForTimeout(200);
+        if (pathname.startsWith('/speaking/' + audio.id)) {
+          // Layout navigation should not revoke a Blob while WebKit is still
+          // decoding it; wait for the actual waveform, not an arbitrary delay.
+          await page.waitForFunction(() => document.querySelector('button[aria-label="播放原音"]')?.disabled === false);
+        }
         await noHorizontalOverflow(page, width + ' ' + pathname);
         if (width < 768) {
           const smallFields = await page.locator('input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]), textarea, select').evaluateAll(elements => elements.filter(element => element.getClientRects().length && parseFloat(getComputedStyle(element).fontSize) < 16).map(element => element.tagName));
@@ -206,7 +216,7 @@ async function noHorizontalOverflow(page, label) {
     await page.getByRole('tab', { name: '我的练习', exact: true }).click();
     await page.getByRole('button', { name: /我的练习.*2026/ }).click();
     await page.getByRole('button', { name: '播放录音', exact: true }).click();
-    await page.waitForFunction(() => qaMedia.some(audio => !audio.paused && audio.currentTime > 0 && audio.readyState >= 2 && !audio.error));
+    await page.waitForFunction(() => qaPlaybackEvents.some(event => event.type === 'timeupdate' && event.time > 0 && !event.error));
     assert.deepEqual(state.streams, [state.records[0].id]);
     // A pending permission response must not revive recording after navigation.
     await page.goto(base + '/speaking/' + audio.id + '?time=0'); await record().waitFor();
@@ -263,6 +273,8 @@ async function noHorizontalOverflow(page, label) {
     console.error('Capture diagnostics:', await page?.evaluate(() => ({
       inputs: window.qaAudioInputs?.map(audio => ({ state: audio.state, time: audio.currentTime })),
       tracks: window.qaStreams?.flatMap(stream => stream.getTracks().map(track => ({ state: track.readyState, muted: track.muted }))),
+      media: window.qaMedia?.map(audio => ({ paused: audio.paused, time: audio.currentTime, duration: audio.duration, ready: audio.readyState, error: audio.error?.code })),
+      playbackEvents: window.qaPlaybackEvents,
       alerts: [...document.querySelectorAll('[role="alert"]')].map(element => element.textContent),
     })).catch(() => null));
     await page?.screenshot({ path: path.join(qa, 'failure.png'), fullPage: true }).catch(() => {});
