@@ -1,9 +1,9 @@
 const { launchBrowser } = require('./qa_support.cjs');
-const { installMP4Capture, readUpload } = require('./qa_capture.cjs');
+const { installMP4Capture, startUploadServer, isUpload } = require('./qa_capture.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const base = process.env.ECHOIC_QA_BASE_URL || 'http://127.0.0.1:18767';
+let base = process.env.ECHOIC_QA_BASE_URL || 'http://127.0.0.1:18767';
 const engine = process.env.ECHOIC_QA_BROWSER || 'chromium';
 const mp4 = engine === 'webkit';
 const qa = path.resolve(__dirname, '../.runtime/qa', engine);
@@ -30,7 +30,23 @@ const score = { accuracy_score: 78, fluency_score: 82, completeness_score: 100, 
 async function fixtures(context, state = {}) {
   state.records = []; state.uploads = []; state.markers = []; state.oral = []; state.scores = []; state.streams = [];
   state.saved = new Map();
-  await context.route(base + '/api/**', async route => {
+  const server = await startUploadServer(base, async (pathname, upload) => {
+    if (/\/save$/.test(pathname)) {
+      state.uploads.push(upload);
+      if (state.failSave) { state.failSave = false; return { status: 503, json: { detail: '模拟上传失败' } }; }
+      const record = { id: 900100 + state.records.length, sentence_index: 0, created_at: audio.created_at, accuracy_score: null };
+      state.saved.set(record.id, upload);
+      fs.writeFileSync(path.join(qa, (state.captureName || 'practice') + path.extname(upload.filename)), upload.bytes);
+      state.records.unshift(record); return { json: record };
+    }
+    state.oral.push(upload);
+    if (state.failOral) { state.failOral = false; return { status: 503, json: { detail: '模拟口语上传失败' } }; }
+    fs.writeFileSync(path.join(qa, 'oral' + path.extname(upload.filename)), upload.bytes);
+    return { json: { id: 900200, ...score } };
+  });
+  base = server.base;
+  state.close = server.close;
+  await context.route(url => url.origin === base && url.pathname.startsWith('/api/') && !isUpload(url.pathname), async route => {
     const req = route.request(), url = new URL(req.url()), p = url.pathname;
     const json = data => route.fulfill({ json: data });
     if (/\/record\/\d+\/stream$/.test(p)) {
@@ -51,15 +67,6 @@ async function fixtures(context, state = {}) {
     if (p === '/api/ai/settings') return json(publicSettings);
     if (/\/analyses$/.test(p)) return json([]);
     if (/\/history$/.test(p)) return json(state.records);
-    if (/\/save$/.test(p)) {
-      const upload = await readUpload(req);
-      state.uploads.push(upload);
-      if (state.failSave) { state.failSave = false; return route.fulfill({ status: 503, json: { detail: '模拟上传失败' } }); }
-      const record = { id: 900100 + state.records.length, sentence_index: 0, created_at: audio.created_at, accuracy_score: null };
-      state.saved.set(record.id, upload);
-      fs.writeFileSync(path.join(qa, (state.captureName || 'practice') + path.extname(upload.filename)), upload.bytes);
-      state.records.unshift(record); return json(record);
-    }
     if (/\/score$/.test(p)) {
       const id = Number(p.split('/').at(-2)); state.scores.push(id);
       const record = state.records.find(record => record.id === id);
@@ -70,12 +77,6 @@ async function fixtures(context, state = {}) {
     if (/\/markers$/.test(p)) {
       if (req.method() === 'POST') { const marker = { id: state.markers.length + 1, ...req.postDataJSON() }; state.markers.push(marker); return json(marker); }
       return json(state.markers);
-    }
-    if (p === '/api/oral/attempts' && req.method() === 'POST') {
-      const upload = await readUpload(req); state.oral.push(upload);
-      if (state.failOral) { state.failOral = false; return route.fulfill({ status: 503, json: { detail: '模拟口语上传失败' } }); }
-      fs.writeFileSync(path.join(qa, 'oral' + path.extname(upload.filename)), upload.bytes);
-      return json({ id: 900200, ...score });
     }
     if (p === '/api/oral/attempts') return json([]);
     if (p.startsWith('/api/dictionary/en/')) return json({ word: 'weather', meanings: [{ partOfSpeech: 'noun', definitions: [{ definition: 'The state of the atmosphere.', examples: [], synonyms: [] }] }] });
@@ -92,13 +93,13 @@ async function noHorizontalOverflow(page, label) {
   assert(dimensions.main.scroll <= dimensions.main.client + 1, label + ': main overflow ' + JSON.stringify(dimensions));
 }
 (async () => {
-  let browser, context, page;
+  let browser, context, page, state;
   try {
     browser = await launchBrowser(mp4 ? {} : { args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--use-file-for-fake-audio-capture=' + inputPath] });
     context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'zh-CN', ...(mp4 ? {} : { permissions: ['microphone'] }), serviceWorkers: 'block' });
     await context.tracing.start({ screenshots: true, snapshots: true });
     if (mp4) await installMP4Capture(context);
-    const state = await fixtures(context);
+    state = await fixtures(context);
     await context.addInitScript(() => {
       window.qaStreams = []; window.qaMedia = []; window.qaPlays = [];
       const mediaPlay = HTMLMediaElement.prototype.play;
@@ -159,7 +160,7 @@ async function noHorizontalOverflow(page, label) {
     const checkFormat = upload => {
       assert.match(upload.filename, mp4 ? /\.m4a$/ : /\.webm$/);
       assert.match(upload.mime, mp4 ? /^audio\/mp4(?:;|$)/ : /^audio\/webm(?:;|$)/);
-      assert(upload.bytes.length > 100, 'Recording must contain encoded media');
+      assert(upload.bytes.length > 100, `Recording must contain encoded media; received ${upload.bytes.length} bytes`);
       if (mp4) assert.equal(upload.bytes.toString('ascii', 4, 8), 'ftyp', 'MP4 must contain real ISO BMFF bytes');
     };
     checkFormat(state.uploads[0]);
@@ -260,5 +261,6 @@ async function noHorizontalOverflow(page, label) {
   } finally {
     await context?.tracing.stop({ path: path.join(qa, 'trace.zip') });
     await browser?.close();
+    await state?.close();
   }
 })().catch(error => { console.error(error); process.exitCode = 1; });
