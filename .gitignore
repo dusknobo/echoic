@@ -9,6 +9,7 @@ backend/storage/
 backend/static/
 
 frontend/node_modules/
+node_modules/
 frontend/dist/
 
 .claude/

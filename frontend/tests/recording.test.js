@@ -169,6 +169,34 @@ test('finish preserves MP4 chunks, supports pause/resume, and releases all captu
   assert.equal(s.track.listenerCount(), 0)
 })
 
+test('MP4 codec MIME and fragmented byte order survive empty and final data events', async () => {
+  const s = setup({ mime: 'audio/mp4' })
+  await s.capture.start()
+  const recorder = s.recorders[0]
+  const mime = 'audio/mp4;codecs=mp4a.40.2'
+  // Container initialization + media fragments; empty events must not pick a MIME.
+  recorder.ondataavailable({ data: new Blob([], { type: 'audio/webm' }) })
+  recorder.ondataavailable({ data: new Blob([new Uint8Array([0, 1, 2])], { type: mime }) })
+  recorder.ondataavailable({ data: new Blob([new Uint8Array([3, 4])]) })
+  recorder.onstop()
+  recorder.onstop()
+  assert.equal(s.completed.length, 1)
+  assert.equal(s.completed[0].type, mime)
+  assert.deepEqual([...new Uint8Array(await s.completed[0].arrayBuffer())], [0, 1, 2, 3, 4])
+  assert.equal(recordingFilename(s.completed[0]), 'recording.m4a')
+})
+
+test('untyped MP4 chunks use the native recorder MIME including codec parameters', async () => {
+  const s = setup({ mime: 'audio/mp4' })
+  await s.capture.start()
+  const recorder = s.recorders[0]
+  recorder.mimeType = 'audio/mp4;codecs=mp4a.40.2'
+  recorder.ondataavailable({ data: new Blob(['untyped container bytes']) })
+  recorder.onstop()
+  assert.equal(s.completed[0].type, recorder.mimeType)
+  assert.equal(recordingFilename(s.completed[0], 'oral_recording'), 'oral_recording.m4a')
+})
+
 test('backgrounding or losing microphone finishes partial audio and reports the reason once', async () => {
   for (const reason of ['background', 'device-ended']) {
     const s = setup()

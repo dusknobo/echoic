@@ -147,4 +147,6 @@ def stream_attempt(attempt_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Attempt not found")
     storage = get_storage_service(attempt.storage_backend)
     path = storage.get_absolute_path(attempt.recording_path)
-    return FileResponse(path)
+    # Host MIME databases can label .m4a as LATM instead of its MP4 container.
+    media_type = "audio/mp4" if Path(path).suffix.lower() == ".m4a" else None
+    return FileResponse(path, media_type=media_type)

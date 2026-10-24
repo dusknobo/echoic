@@ -1,5 +1,9 @@
 from contextlib import contextmanager
 from datetime import datetime, timedelta
+from pathlib import Path
+import mimetypes
+
+import pytest
 
 from fastapi.testclient import TestClient
 
@@ -11,6 +15,9 @@ from app.schemas.audio import WordTimestamp
 from app.schemas.practice import WordScore
 from app.services.factory import get_alignment_service, get_scoring_service, get_storage_service
 from app.services.scoring.base import ScoringResult
+from app.config import StorageConfig
+from app.services.storage.local import LocalStorageService
+from app.services.record_word_alignment import read_recording_duration
 
 
 class MockStorageService:
@@ -55,9 +62,11 @@ class MockScoringService:
 
 
 @contextmanager
-def _client(db, storage, alignment, scoring):
+def _client(db, storage, alignment, scoring, *, commit_requests=False):
     def override_db():
         yield db
+        if commit_requests:
+            db.commit()
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_storage_service] = lambda: storage
@@ -181,3 +190,114 @@ def test_history_returns_records_in_reverse_chronological_order(db):
 
     assert response.status_code == 200
     assert [item["accuracy_score"] for item in response.json()] == [92.0, 80.0]
+
+
+class DecodingScoringService(MockScoringService):
+    """Real media decode at the model boundary, deterministic model output."""
+    def score(self, recording_path, reference_text, aligned_words, **_kwargs):
+        assert read_recording_duration(recording_path) > 0.1
+        return super().score(recording_path, reference_text, aligned_words)
+
+
+@pytest.fixture
+def media_db(tmp_path):
+    # Real request commits/rollbacks without the outer transaction of `db`.
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+    from app.db import Base
+    engine = create_engine(f"sqlite:///{tmp_path / 'media.sqlite'}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+    try:
+        with Session(engine) as session:
+            yield session
+    finally:
+        engine.dispose()
+
+
+def _assert_media_stream(client, url, data):
+    response = client.get(url)
+    assert response.status_code == 200
+    assert response.content == data
+    assert response.headers["content-type"].split(";")[0] in {"audio/mp4", "audio/x-m4a", "video/mp4"}
+    # Safari media loading/seeking may request byte ranges.
+    response = client.get(url, headers={"Range": "bytes=0-31"})
+    assert response.status_code == 206
+    assert response.content == data[:32]
+    assert response.headers["content-range"] == f"bytes 0-31/{len(data)}"
+
+
+@pytest.fixture
+def misleading_m4a_mime(monkeypatch):
+    # Reproduce macOS/host MIME databases on every CI platform. MP4 containers
+    # must not inherit the distinct LATM transport type from an extension guess.
+    mimetypes.init()
+    monkeypatch.setitem(mimetypes.types_map, ".m4a", "audio/mp4a-latm")
+
+
+@pytest.mark.media
+@pytest.mark.usefixtures("misleading_m4a_mime")
+def test_mp4_save_stream_score_failure_and_retry(media_db, tmp_storage, monkeypatch, mp4_recording):
+    db = media_db
+    audio_file = _seed_audio_file(db)
+    storage = LocalStorageService(StorageConfig(local_dir=str(tmp_storage)))
+    alignment = MockAlignmentService()
+    scoring = DecodingScoringService()
+    monkeypatch.setattr("app.api.routes.practice.get_storage_service", lambda _backend: storage)
+    filename, data, mime = mp4_recording
+    with _client(db, storage, alignment, scoring, commit_requests=True) as client:
+        response = client.post(f"/api/practice/{audio_file.id}/sentence/0/save", files={"file": mp4_recording})
+        assert response.status_code == 200
+        saved = response.json()
+        record = db.get(PracticeRecord, saved["id"])
+        key = record.recording_path
+        assert Path(key).suffix == Path(filename).suffix
+        assert storage.load(key) == data
+        assert saved["accuracy_score"] is None and not scoring.calls and not alignment.calls
+        _assert_media_stream(client, f"/api/practice/record/{record.id}/stream", data)
+        real_score = scoring.score
+        def unavailable(*args, **kwargs):
+            raise RuntimeError("Model unavailable")
+        monkeypatch.setattr(scoring, "score", unavailable)
+        response = client.post(f"/api/practice/record/{record.id}/score")
+        assert response.status_code == 503
+        db.refresh(record)
+        assert record.accuracy_score is None
+        _assert_media_stream(client, f"/api/practice/record/{record.id}/stream", data)
+        monkeypatch.setattr(scoring, "score", real_score)
+        response = client.post(f"/api/practice/record/{record.id}/score")
+        assert response.status_code == 200
+        assert response.json()["accuracy_score"] == 91
+        history = client.get(f"/api/practice/{audio_file.id}/sentence/0/history").json()
+        assert [item["id"] for item in history] == [saved["id"]]
+        assert history[0]["accuracy_score"] == 91
+    assert scoring.calls[0][0] == storage.get_absolute_path(key)
+    assert storage.load(key) == data
+    assert len(list(tmp_storage.rglob("*.*"))) == 1
+
+
+@pytest.mark.media
+@pytest.mark.usefixtures("misleading_m4a_mime")
+def test_mp4_oral_upload_decode_score_and_stream(media_db, tmp_storage, monkeypatch, mp4_recording):
+    db = media_db
+    from app.services.factory import get_llm_service
+    from app.models.oral_attempt import OralAttempt
+    storage = LocalStorageService(StorageConfig(local_dir=str(tmp_storage)))
+    alignment = MockAlignmentService()
+    scoring = DecodingScoringService()
+    monkeypatch.setattr("app.api.routes.oral.get_storage_service", lambda _backend: storage)
+    monkeypatch.setattr("app.api.routes.oral.get_alignment_service", lambda _language: alignment)
+    monkeypatch.setattr("app.api.routes.oral.get_asr_service", lambda _language: None)
+    with _client(db, storage, alignment, scoring, commit_requests=True) as client:
+        # read_aloud does not use ASR/LLM; never instantiate a paid provider.
+        app.dependency_overrides[get_llm_service] = lambda: None
+        response = client.post("/api/oral/attempts", files={"file": mp4_recording}, data={
+            "question_type": "read_aloud", "question_language": "en",
+            "question_prompt": "Read this", "question_reference": "hello world",
+        })
+        assert response.status_code == 200
+        result = response.json()
+        assert result["accuracy_score"] == 91
+        attempt = db.get(OralAttempt, result["id"])
+        assert Path(attempt.recording_path).suffix == Path(mp4_recording[0]).suffix
+        assert scoring.calls[0][0] == storage.get_absolute_path(attempt.recording_path)
+        _assert_media_stream(client, f"/api/oral/attempts/{attempt.id}/stream", mp4_recording[1])

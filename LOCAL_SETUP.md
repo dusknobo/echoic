@@ -61,13 +61,66 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\scripts\Stop-Echoic.p
 
 录音会自动选择浏览器支持的 WebM、MP4 或 Ogg，上传及下载保留实际格式。切换到后台或麦克风连接中断时，网页会结束录音，保留已录到的部分并提示回放检查。跟读上传失败可以点击“重试保存”；口语练习提交失败后可以再次提交。未保存录音仅保留在当前页面内存中，重试成功前请保持页面打开。
 
-手机网页验证使用模拟接口和浏览器麦克风，不调用收费 AI 服务，也不写入个人学习数据库。安装 Playwright 及浏览器后，在项目目录执行：
+手机回归复用 `scripts/qa_mobile.cjs`，保留原有 40 组页面布局和录音操作检查。首次在项目根目录安装固定版本的 QA 依赖：
 
 ```powershell
-node scripts/qa_mobile.cjs
+npm ci
+npm ci --prefix frontend
+npx playwright install chromium
+npm run build --prefix frontend
+npm run test:mobile
 ```
 
-默认验证地址是 `http://127.0.0.1:18767`，可用 `ECHOIC_QA_BASE_URL` 指向已经启动的预览。浏览器选择方式与其他 QA 脚本相同，可设置 `ECHOIC_PLAYWRIGHT_MODULE` 和 `ECHOIC_BROWSER_PATH`。
+`test:mobile` 自动启动并关闭 `127.0.0.1:18767` 的构建预览；端口占用会报错。也可用 `ECHOIC_QA_BASE_URL` 指向自己已经启动的预览。原来的 `node scripts/qa_mobile.cjs` 仍可直接调用，默认使用 Chromium/Edge；`ECHOIC_PLAYWRIGHT_MODULE` 和 `ECHOIC_BROWSER_PATH` 仍适用于 Chromium。
+
+### WebKit / Safari 风格的 MP4 回归
+
+在 **macOS** 上安装 WebKit 后运行同一套场景：
+
+```sh
+npx playwright install webkit
+npm run test:mobile:webkit
+```
+
+这个模式使用真实 Playwright WebKit 引擎、原生 `MediaRecorder` 和原生音频播放。测试将 `getUserMedia` 输入替换为 Web Audio 合成音，并限制格式探测为 MP4，让新版 WebKit 即使支持 WebM 也必须走 MP4 分支；不会替换录音器或用 WAV 冒充 MP4。不支持原生 MP4 时测试失败，不跳过、不降级为 WebM。WebKit 模式拒绝 Chromium 启动参数及自定义 Edge 路径。
+
+Playwright WebKit 不是发行版 Safari，编解码能力也依赖操作系统。因此 CI 使用 macOS WebKit；Linux WebKit 不能作为 Safari 编解码兼容性的充分证据。参见 [Playwright 浏览器说明](https://playwright.dev/docs/browsers#webkit) 和 [Safari 18.4 新增 WebM 录制支持](https://webkit.org/blog/16574/webkit-features-in-safari-18-4/)。
+
+| 自动化层 | 验证内容 | 替代或未覆盖的部分 |
+| --- | --- | --- |
+| 现有前端单元测试 + MP4 事件边界 | 格式选择、资源释放；新增空事件过滤、带 codec 的 MIME、分片顺序和无类型分片回退 | 模拟录音器，不证明真实媒体可解码 |
+| Chromium / macOS WebKit 浏览器 | 原生 WebM / MP4 编码，真实容器头、MIME/扩展名；上传及口语重试字节完全一致；同时播放、A/B；评分失败重试不重复上传；刷新后从历史录音字节回放；原有中断和权限提示 | API 响应和评分结果模拟；输入为测试音；后台、断麦和拒权事件模拟 |
+| 真实后端媒体测试 | 普通及 fragmented MP4/AAC，`.m4a` / `.mp4`，multipart 上传、真实本地存储、Content-Type、HTTP 206 / Content-Range、FFmpeg 解码；失败不写入分数，重试复用同一记录；口语朗读接口 | 对齐和评分模型使用替身；在评分入口使用实际解码验证文件，未运行语音模型 |
+| WebKit → 后端文件衔接 | 浏览器保存的普通、后台中断、断麦、口语 4 个原生 MP4 文件再次进入上述真实后端测试 | 分层验证，不是浏览器连接生产后端的一次完整联调 |
+
+运行轻量后端媒体测试（不下载语音模型、不需要 API key）：
+
+```sh
+python -m pip install -r scripts/requirements-media-qa.txt
+# PATH 中需要 ffmpeg 和 ffprobe；Windows 可在 PowerShell 设置相同环境变量。
+DATABASE_URL=sqlite:///:memory: python -m pytest backend/tests/api/test_practice.py -q
+# macOS 上完成 WebKit 场景后，强制验证它产出的四个文件；缺任何文件会报错。
+DATABASE_URL=sqlite:///:memory: ECHOIC_QA_CAPTURE_DIR="$PWD/.runtime/qa/webkit" \
+  python -m pytest backend/tests/api/test_practice.py -m media -q
+```
+
+轻量依赖版本取自 `backend/uv.lock`；更新后端锁文件时同步 `scripts/requirements-media-qa.txt`。已有完整后端环境可直接运行 pytest。测试使用临时 SQLite 和临时存储，不操作个人数据库，也不调用收费 AI 服务。
+
+这组回归在 macOS 上发现默认 MIME 数据库会把 `.m4a` 推断成 `audio/mp4a-latm`。跟读及口语的录音回放接口现明确返回 `audio/mp4`；测试也注入这个错误映射，确保 Linux CI 同样能捕获回归。
+
+`.github/workflows/mobile-recording.yml` 在 PR、main 推送及手动触发时执行前端单元测试、真实后端媒体测试，以及 Chromium/Linux 和 WebKit/macOS 两个浏览器任务。失败时保留截图和 Playwright trace；每次成功录音也保存测试音文件，供后端衔接验证。产物在 `.runtime/qa/<browser>/`，CI 保留 7 天；可用 `npx playwright show-trace <trace.zip>` 查看。原有其他专项 QA 脚本保留，未宣称全部纳入这个工作流。
+
+### 发布前的真实手机验收（仍需人工完成）
+
+记录设备、iOS/iPadOS、Safari 版本、实际 MIME/扩展名、HTTPS 地址和结果；自动化通过不能代替以下检查：
+
+- 在 iPhone Safari 和 iPad Safari 的有效 HTTPS 页面，首次允许麦克风，拒绝后恢复权限；确认系统麦克风指示在结束、取消、导航后熄灭。
+- 录短句及较长句，暂停/继续后完成；试听首尾、无静音或截断，再保存、刷新载入历史，拖动播放，做 A/B 和同时播放。
+- 录制时切到后台、锁屏、来电、切换蓝牙耳机或拔掉耳机，返回后检查中断提示及残留音频是否实际可听，必要时重新录音。操作系统可能冻结页面，不能保证所有中断都有完整尾帧。
+- 在上传时断网，页面保持打开，恢复网络后重试，确认录音内容一致。区分服务器明确失败与“服务端已保存但响应丢失”：后者目前没有录音上传幂等键，仍可能产生重复记录；自动化的 503 重试不证明这一情形已解决。
+- 使用真实人声分别完成跟读评分和口语朗读评分；确认部署机的 FFmpeg、模型和所选服务可处理实际文件。合成测试音的固定分数不能证明发音评分质量。
+
+真机验收状态应单独记录为待测/通过/失败，不将 Playwright 移动视口或合成输入记为真机通过。
 
 ## 第一遍连续盲听
 
